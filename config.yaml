@@ -1,0 +1,145 @@
+# ---------------------------------------------------------------------------
+# Feed aggregator configuration
+# Values here override the built-in defaults in src/config.py.
+# ---------------------------------------------------------------------------
+
+feed_title: "FeedOverview Daily"
+feed_link: "https://your-username.github.io/FeedOverview/"
+feed_description: "News, science, tech, ideas and books from 15 sources, ranked and condensed by an LLM."
+feed_language: "en"
+output_path: "docs/feed.xml"
+
+# Keep these in version control so incremental de-duplication survives runs.
+seen_path: "cache/seen.json"
+seen_retention_days: 30
+
+# Final number of items in the output feed.
+max_items: 50
+# Hard cap of entries taken from a single source per run.
+max_items_per_source: 20
+# Hard cap of candidates handed to the ranking step.
+max_candidates_for_llm: 80
+
+# Free-form description of what the reader cares about. Used in the ranking prompt.
+interest: "Technology, science and world affairs; long-form ideas and essays; practical reading that helps a language learner"
+
+feeds:
+  # News
+  - title: "NPR News"
+    url: "https://feeds.npr.org/1001/rss.xml"
+    category: "News"
+    weight: 1.0
+  - title: "France24 English"
+    url: "https://www.france24.com/en/rss"
+    category: "News"
+    weight: 1.0
+  # Science
+  - title: "Nature"
+    url: "https://www.nature.com/nature.rss"
+    category: "Science"
+    weight: 1.2
+  - title: "Quanta"
+    url: "https://www.quantamagazine.org/feed/"
+    category: "Science"
+    weight: 1.2
+  # Tech
+  - title: "The Verge"
+    url: "https://www.theverge.com/rss/index.xml"
+    category: "Tech"
+    weight: 1.2
+  - title: "Ars Technica"
+    url: "http://feeds.arstechnica.com/arstechnica/index"
+    category: "Tech"
+    weight: 1.2
+  - title: "Hacker News"
+    url: "https://hnrss.org/frontpage"
+    category: "Tech"
+    weight: 1.0
+  # Books
+  - title: "Literary Hub"
+    url: "https://lithub.com/feed/"
+    category: "Books"
+    weight: 1.0
+  - title: "Wait But Why"
+    url: "https://waitbutwhy.com/feed"
+    category: "Books"
+    weight: 1.0
+  # Ideas
+  - title: "Aeon"
+    url: "https://aeon.co/feed"
+    category: "Ideas"
+    weight: 1.1
+  - title: "Psyche"
+    url: "https://psyche.co/feed"
+    category: "Ideas"
+    weight: 1.1
+  # Learner
+  - title: "News in Levels"
+    url: "https://www.newsinlevels.com/feed/"
+    category: "Learner"
+    weight: 1.0
+  - title: "Espresso English"
+    url: "https://www.espressoenglish.net/feed/"
+    category: "Learner"
+    weight: 1.0
+  # Business
+  - title: "Fortune"
+    url: "https://fortune.com/feed"
+    category: "Business"
+    weight: 1.0
+  # Life
+  - title: "Lifehacker"
+    url: "https://lifehacker.com/rss"
+    category: "Life"
+    weight: 0.9
+
+extract:
+  timeout: 15          # seconds per HTTP request
+  retries: 2           # retries after the first failure
+  max_workers: 5       # concurrent page downloads
+  user_agent: "Mozilla/5.0 (compatible; FeedAggregator/1.0; +https://github.com/) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+  fast: true           # trafilatura: skip the slower fallback extractors
+  favor_recall: true   # trafilatura: prefer recall over precision
+  max_content_chars: 8000   # body length kept in memory / feed
+  min_content_chars: 80     # below this, treat extraction as failed and use the RSS summary
+
+llm:
+  # api_key / base_url come from the environment (LLM_API_KEY, LLM_BASE_URL).
+  # LLM_MODEL overrides this value when set.
+  #
+  # Zhipu BigModel (https://docs.bigmodel.cn):
+  #   LLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+  #   glm-4-flash: free, fastest and most stable in testing (recommended).
+  #   glm-4.7-flash is the free tier, but it is heavily loaded (429 / code 1305).
+  #   glm-4.5-flash and glm-4.5-air are more stable free alternatives.
+  model: "glm-4-flash"
+  temperature: 0.2
+  max_summary_chars: 1200   # body preview length inside the ranking prompt
+  rank_batch_size: 40       # articles per ranking request
+  timeout: 120              # seconds per LLM request
+
+  # Provider-specific request fields forwarded to the API as-is.
+  # GLM-4.5 models run a "thinking" pass by default, which is slow for our short
+  # JSON tasks; disabling it took one ranking call from ~66s to ~7s.
+  # Remove this block when using a different provider.
+  extra_body:
+    thinking:
+      type: disabled
+
+  ranking_criteria: |
+    1. Relevance to the reader's interests in books, literary criticism and long-form essays.
+    2. Substance: original argument, close reading or reported depth beats listicles and
+       promotional posts.
+    3. Freshness: newer articles win when everything else is equal.
+    4. Diversity: keep only the most valuable article per topic, avoid near-duplicates.
+
+  refine:
+    enabled: true
+    max_input_chars: 4000     # body characters sent to the refinement call
+    max_output_chars: 800     # target (and hard) cap for the refined body
+    concurrency: 3            # parallel refinement requests; 3 works on glm-4-flash, drop to 1 on 429/1302
+    keep_title: true          # when true the LLM only condenses the body
+    style: >
+      Write concise, objective prose. Keep key data, quotes and conclusions, drop redundant
+      wording and repetition. Never change facts or add information that is not in the
+      source.

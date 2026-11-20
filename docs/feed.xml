@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Placeholder. The first aggregator run replaces this file with the real feed. -->
+<rss version="2.0">
+  <channel>
+    <title>FeedOverview Daily</title>
+    <link>https://your-username.github.io/FeedOverview/</link>
+    <description>News, science, tech, ideas and books from 15 sources, ranked and condensed by an LLM.</description>
+    <language>en</language>
+    <lastBuildDate>Sat, 01 Nov 2025 00:00:00 +0000</lastBuildDate>
+  </channel>
+</rss>
