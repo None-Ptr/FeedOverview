@@ -92,3 +92,36 @@ class TestPrefilter:
     def test_no_limit_keeps_everything(self, cfg):
         articles = [_article("a", "https://example.com/a", 1)]
         assert select_for_llm(articles, 10) == articles
+
+    def test_prefers_diverse_sources(self, cfg):
+        articles = [
+            make_article(
+                title=f"a{day}",
+                link=f"https://a.com/{day}",
+                source="A",
+                published=DAY.replace(day=day),
+            )
+            for day in (5, 4, 3)
+        ] + [
+            make_article(
+                title="b1",
+                link="https://b.com/1",
+                source="B",
+                published=DAY.replace(day=1),
+            )
+        ]
+        kept = select_for_llm(articles, 2, max_per_source=1)
+        assert [item.source_name for item in kept] == ["A", "B"]
+
+    def test_fills_up_when_diversity_is_not_enough(self, cfg):
+        articles = [
+            make_article(
+                title=f"a{day}",
+                link=f"https://a.com/{day}",
+                source="A",
+                published=DAY.replace(day=day),
+            )
+            for day in (5, 4, 3)
+        ]
+        kept = select_for_llm(articles, 3, max_per_source=1)
+        assert [item.title for item in kept] == ["a5", "a4", "a3"]

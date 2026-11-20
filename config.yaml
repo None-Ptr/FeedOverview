@@ -24,7 +24,9 @@ max_items_per_source: 20
 # Articles published in each category feed per run.
 max_items_per_category: 6
 # Candidates per category handed to body extraction and ranking.
-max_candidates_per_category: 12
+max_candidates_per_category: 18
+# Keep one high-volume source from occupying every candidate slot.
+max_candidates_per_source: 2
 
 # Free-form description of what the reader cares about. Used in the ranking prompt.
 interest: >-
@@ -104,6 +106,9 @@ feeds:
   - title: "DW Top Stories"
     url: "https://rss.dw.com/rdf/rss-en-top"
     category: "News"
+  - title: "The Guardian US"
+    url: "https://www.theguardian.com/us-news/rss"
+    category: "News"
 
   # --- Science ------------------------------------------------------------
   - title: "Nature"
@@ -160,6 +165,12 @@ feeds:
   - title: "Eos"
     url: "https://eos.org/feed"
     category: "Science"
+  - title: "The Guardian Science"
+    url: "https://www.theguardian.com/science/rss"
+    category: "Science"
+  - title: "BBC Science & Environment"
+    url: "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"
+    category: "Science"
 
   # --- Health -------------------------------------------------------------
   - title: "NPR Health"
@@ -168,17 +179,20 @@ feeds:
   - title: "STAT"
     url: "https://www.statnews.com/feed/"
     category: "Health"
-  - title: "Medical News Today"
-    url: "https://www.medicalnewstoday.com/rss"
-    category: "Health"
   - title: "Medical Xpress"
     url: "https://medicalxpress.com/rss-feed/"
+    category: "Health"
+  - title: "BBC Health"
+    url: "https://feeds.bbci.co.uk/news/health/rss.xml"
     category: "Health"
   - title: "KFF Health News"
     url: "https://kffhealthnews.org/feed/"
     category: "Health"
   - title: "The Conversation Health"
     url: "https://theconversation.com/us/health/articles.atom"
+    category: "Health"
+  - title: "The Guardian Health"
+    url: "https://www.theguardian.com/society/health/rss"
     category: "Health"
 
   # --- Tech ---------------------------------------------------------------
@@ -236,6 +250,12 @@ feeds:
   - title: "Cloudflare Blog"
     url: "https://blog.cloudflare.com/rss/"
     category: "Tech"
+  - title: "The Guardian Technology"
+    url: "https://www.theguardian.com/technology/rss"
+    category: "Tech"
+  - title: "BBC Technology"
+    url: "https://feeds.bbci.co.uk/news/technology/rss.xml"
+    category: "Tech"
 
   # --- Business -----------------------------------------------------------
   - title: "Fortune"
@@ -253,6 +273,15 @@ feeds:
     category: "Business"
   - title: "strategy+business"
     url: "https://www.strategy-business.com/all_updates.xml"
+    category: "Business"
+  - title: "The Guardian Business"
+    url: "https://www.theguardian.com/business/rss"
+    category: "Business"
+  - title: "BBC Business"
+    url: "https://feeds.bbci.co.uk/news/business/rss.xml"
+    category: "Business"
+  - title: "NPR Business"
+    url: "https://feeds.npr.org/1006/rss.xml"
     category: "Business"
 
   # --- Environment --------------------------------------------------------
@@ -274,6 +303,9 @@ feeds:
   - title: "The Revelator"
     url: "https://therevelator.org/feed/"
     category: "Environment"
+  - title: "The Guardian Environment"
+    url: "https://www.theguardian.com/environment/rss"
+    category: "Environment"
 
   # --- Food ---------------------------------------------------------------
   - title: "Eater"
@@ -288,11 +320,14 @@ feeds:
   - title: "Taste of Home"
     url: "https://www.tasteofhome.com/feed/"
     category: "Food"
-  - title: "Food52"
-    url: "https://food52.com/blog.rss"
-    category: "Food"
   - title: "Saveur"
     url: "https://www.saveur.com/feed/"
+    category: "Food"
+  - title: "The Guardian Food"
+    url: "https://www.theguardian.com/food/rss"
+    category: "Food"
+  - title: "BBC Good Food"
+    url: "https://www.bbcgoodfood.com/feed"
     category: "Food"
 
   # --- Art ----------------------------------------------------------------
@@ -307,6 +342,9 @@ feeds:
     category: "Art"
   - title: "Artnet News"
     url: "https://news.artnet.com/feed"
+    category: "Art"
+  - title: "The Guardian Art and Design"
+    url: "https://www.theguardian.com/artanddesign/rss"
     category: "Art"
 
   # --- Design -------------------------------------------------------------
@@ -330,6 +368,9 @@ feeds:
     category: "Design"
   - title: "CSS-Tricks"
     url: "https://css-tricks.com/feed/"
+    category: "Design"
+  - title: "Creative Boom"
+    url: "https://www.creativeboom.com/feed/"
     category: "Design"
 
   # --- Books --------------------------------------------------------------
@@ -365,17 +406,20 @@ feeds:
   - title: "The Millions"
     url: "https://themillions.com/feed"
     category: "Books"
-  - title: "Public Books"
-    url: "https://www.publicbooks.org/feed/"
-    category: "Books"
   - title: "The Rumpus"
     url: "https://therumpus.net/feed/"
     category: "Books"
   - title: "Chicago Review of Books"
     url: "https://chireviewofbooks.com/feed/"
     category: "Books"
-  - title: "Granta"
-    url: "https://granta.com/feed/"
+  - title: "The New York Times Books"
+    url: "https://rss.nytimes.com/services/xml/rss/nyt/Books.xml"
+    category: "Books"
+  - title: "The Guardian Books"
+    url: "https://www.theguardian.com/books/rss"
+    category: "Books"
+  - title: "n+1"
+    url: "https://www.nplusonemag.com/feed/"
     category: "Books"
 
   # --- Ideas --------------------------------------------------------------
@@ -436,6 +480,15 @@ feeds:
   - title: "Noema"
     url: "https://www.noemamag.com/feed/"
     category: "Ideas"
+  - title: "The Point"
+    url: "https://thepointmag.com/feed/"
+    category: "Ideas"
+  - title: "Harper's Magazine"
+    url: "https://harpers.org/feed/"
+    category: "Ideas"
+  - title: "The Guardian Opinion"
+    url: "https://www.theguardian.com/commentisfree/rss"
+    category: "Ideas"
 
   # --- Learner ------------------------------------------------------------
   - title: "News in Levels"
@@ -465,11 +518,11 @@ feeds:
   - title: "A Way with Words"
     url: "https://waywordradio.org/feed/"
     category: "Learner"
-  - title: "Grammar Girl"
-    url: "https://www.quickanddirtytips.com/grammar-girl/feed"
-    category: "Learner"
   - title: "Grammarphobia"
     url: "https://grammarphobia.com/blog/feed"
+    category: "Learner"
+  - title: "TED-Ed Blog"
+    url: "https://blog.ed.ted.com/feed/"
     category: "Learner"
 
   # --- Sports -------------------------------------------------------------
@@ -486,10 +539,10 @@ feeds:
     url: "https://feeds.bbci.co.uk/sport/rss.xml"
     category: "Sports"
   - title: "The Guardian Sport"
-    url: "https://www.theguardian.com/uk/sports/rss"
+    url: "https://www.theguardian.com/sport/rss"
     category: "Sports"
-  - title: "ESPN"
-    url: "https://www.espn.com/espn/rss/news"
+  - title: "NPR Sports"
+    url: "https://feeds.npr.org/1055/rss.xml"
     category: "Sports"
 
   # --- Travel -------------------------------------------------------------
@@ -507,6 +560,9 @@ feeds:
     category: "Travel"
   - title: "The Points Guy"
     url: "https://thepointsguy.com/feed/"
+    category: "Travel"
+  - title: "The Guardian Travel"
+    url: "https://www.theguardian.com/travel/rss"
     category: "Travel"
 
   # --- Education ----------------------------------------------------------
@@ -528,31 +584,43 @@ feeds:
   - title: "The 74"
     url: "https://www.the74million.org/feed/"
     category: "Education"
-  - title: "Education Week"
-    url: "https://www.edweek.org/arc/outboundfeeds/rss/?outputType=xml"
+  - title: "NPR Education"
+    url: "https://feeds.npr.org/1013/rss.xml"
     category: "Education"
   - title: "Faculty Focus"
     url: "https://www.facultyfocus.com/feed/"
     category: "Education"
+  - title: "The Guardian Education"
+    url: "https://www.theguardian.com/education/rss"
+    category: "Education"
 
   # --- Policy -------------------------------------------------------------
-  - title: "Bruegel"
-    url: "https://www.bruegel.org/rss.xml"
-    category: "Policy"
   - title: "Aspen Institute"
     url: "https://www.aspeninstitute.org/feed/"
     category: "Policy"
-  - title: "Brookings"
-    url: "https://www.brookings.edu/feed/"
-    category: "Policy"
   - title: "Pew Research Center"
     url: "https://www.pewresearch.org/feed/"
+    category: "Policy"
+  - title: "Politico Politics"
+    url: "https://rss.politico.com/politics-news.xml"
+    category: "Policy"
+  - title: "The Conversation Politics"
+    url: "https://theconversation.com/us/politics/articles.atom"
     category: "Policy"
   - title: "War on the Rocks"
     url: "https://warontherocks.com/feed/"
     category: "Policy"
   - title: "The Diplomat"
     url: "https://thediplomat.com/feed/"
+    category: "Policy"
+  - title: "The Guardian Politics"
+    url: "https://www.theguardian.com/politics/rss"
+    category: "Policy"
+  - title: "BBC Politics"
+    url: "https://feeds.bbci.co.uk/news/politics/rss.xml"
+    category: "Policy"
+  - title: "NPR Politics"
+    url: "https://feeds.npr.org/1014/rss.xml"
     category: "Policy"
 
   # --- Life ---------------------------------------------------------------
@@ -570,6 +638,9 @@ feeds:
     category: "Life"
   - title: "Remodelista"
     url: "https://www.remodelista.com/feed/"
+    category: "Life"
+  - title: "The Guardian Life and Style"
+    url: "https://www.theguardian.com/lifeandstyle/rss"
     category: "Life"
 
 extract:

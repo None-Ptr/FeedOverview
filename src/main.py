@@ -110,8 +110,9 @@ def run(cfg: dict) -> int:
 
     groups = group_articles(candidates, categories)
     candidate_limit = int(
-        cfg.get("max_candidates_per_category", cfg.get("max_candidates_for_llm", 12))
+        cfg.get("max_candidates_per_category", cfg.get("max_candidates_for_llm", 18))
     )
+    per_source_limit = int(cfg.get("max_candidates_per_source", 2))
     item_limit = int(cfg.get("max_items_per_category", 6))
 
     selections: dict[str, list] = {}
@@ -123,7 +124,7 @@ def run(cfg: dict) -> int:
             continue
 
         if len(items) > candidate_limit:
-            items = select_for_llm(items, candidate_limit)
+            items = select_for_llm(items, candidate_limit, per_source_limit)
         logger.info("Category %s: %d candidates", category.key, len(items))
 
         enrich_all(items, cfg["extract"])

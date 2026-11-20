@@ -11,7 +11,7 @@ ranks each topic against a learning-oriented interest profile, condenses the win
 18 RSS 2.0 files from GitHub Pages: one per category plus a combined feed.
 
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.14-3776AB?logo=python&logoColor=white)](#quick-start)
-[![Tests](https://img.shields.io/badge/tests-146%20passing-2ea44f)](#tests)
+[![Tests](https://img.shields.io/badge/tests-148%20passing-2ea44f)](#tests)
 [![RSS](https://img.shields.io/badge/output-RSS%202.0-f26522?logo=rss&logoColor=white)](#output-format)
 [![LLM](https://img.shields.io/badge/LLM-OpenAI%20compatible-6b4fbb)](#environment-variables)
 [![Runs on](https://img.shields.io/badge/runs%20on-GitHub%20Actions%20%2B%20Pages-2088ff?logo=githubactions&logoColor=white)](#deploy-github-actions--github-pages)
@@ -105,7 +105,7 @@ Steps in code:
 | --- | --- | --- |
 | 1 | `fetch_all()` | ThreadPoolExecutor(10), 12 s timeout, 1 retry, browser-like UA |
 | 2 | `dedupe_articles()` | Normalized link (tracking params, fragments, trailing slashes removed) |
-| 3 | `group_articles()` + `select_for_llm()` | Partition by category, then keep the newest `max_candidates_per_category` per category |
+| 3 | `group_articles()` + `select_for_llm()` | Partition by category, then keep up to `max_candidates_per_category` with `max_candidates_per_source` per feed |
 | 4 | `enrich_all()` | trafilatura extraction, body capped at `extract.max_content_chars` |
 | 5 | `rank_articles(category=...)` | Batched prompts with the category label → `{"order":[{"index","score","reason"}]}` |
 | 6 | `refine_articles()` | One call per item with `llm.refine.concurrency` workers |
@@ -140,23 +140,23 @@ the feeds. Keys are English and stable; labels are what readers see.
 
 | Key | Label | Feed | Sources |
 | --- | --- | --- | --- |
-| `News` | 新闻 | [`feeds/news.xml`](docs/feeds/news.xml) | 11 |
-| `Science` | 科学 | [`feeds/science.xml`](docs/feeds/science.xml) | 17 |
-| `Health` | 健康 | [`feeds/health.xml`](docs/feeds/health.xml) | 6 |
-| `Tech` | 科技 | [`feeds/tech.xml`](docs/feeds/tech.xml) | 17 |
-| `Business` | 商业 | [`feeds/business.xml`](docs/feeds/business.xml) | 5 |
-| `Environment` | 环境 | [`feeds/environment.xml`](docs/feeds/environment.xml) | 6 |
-| `Food` | 食物 | [`feeds/food.xml`](docs/feeds/food.xml) | 6 |
-| `Art` | 艺术 | [`feeds/art.xml`](docs/feeds/art.xml) | 4 |
-| `Design` | 设计 | [`feeds/design.xml`](docs/feeds/design.xml) | 7 |
-| `Books` | 书籍文学 | [`feeds/books.xml`](docs/feeds/books.xml) | 14 |
-| `Ideas` | 思想文化 | [`feeds/ideas.xml`](docs/feeds/ideas.xml) | 18 |
+| `News` | 新闻 | [`feeds/news.xml`](docs/feeds/news.xml) | 12 |
+| `Science` | 科学 | [`feeds/science.xml`](docs/feeds/science.xml) | 19 |
+| `Health` | 健康 | [`feeds/health.xml`](docs/feeds/health.xml) | 7 |
+| `Tech` | 科技 | [`feeds/tech.xml`](docs/feeds/tech.xml) | 19 |
+| `Business` | 商业 | [`feeds/business.xml`](docs/feeds/business.xml) | 8 |
+| `Environment` | 环境 | [`feeds/environment.xml`](docs/feeds/environment.xml) | 7 |
+| `Food` | 食物 | [`feeds/food.xml`](docs/feeds/food.xml) | 7 |
+| `Art` | 艺术 | [`feeds/art.xml`](docs/feeds/art.xml) | 5 |
+| `Design` | 设计 | [`feeds/design.xml`](docs/feeds/design.xml) | 8 |
+| `Books` | 书籍文学 | [`feeds/books.xml`](docs/feeds/books.xml) | 15 |
+| `Ideas` | 思想文化 | [`feeds/ideas.xml`](docs/feeds/ideas.xml) | 21 |
 | `Learner` | 英语学习 | [`feeds/learner.xml`](docs/feeds/learner.xml) | 11 |
 | `Sports` | 体育 | [`feeds/sports.xml`](docs/feeds/sports.xml) | 6 |
-| `Travel` | 旅行 | [`feeds/travel.xml`](docs/feeds/travel.xml) | 5 |
-| `Education` | 教育 | [`feeds/education.xml`](docs/feeds/education.xml) | 8 |
-| `Policy` | 政策智库 | [`feeds/policy.xml`](docs/feeds/policy.xml) | 6 |
-| `Life` | 生活 | [`feeds/life.xml`](docs/feeds/life.xml) | 5 |
+| `Travel` | 旅行 | [`feeds/travel.xml`](docs/feeds/travel.xml) | 6 |
+| `Education` | 教育 | [`feeds/education.xml`](docs/feeds/education.xml) | 9 |
+| `Policy` | 政策智库 | [`feeds/policy.xml`](docs/feeds/policy.xml) | 9 |
+| `Life` | 生活 | [`feeds/life.xml`](docs/feeds/life.xml) | 6 |
 
 Add a category by adding it under `categories:` and giving feeds that key. A feed whose category is
 not declared is grouped under `Uncategorized` (label `未分类`) with a warning, so a typo never
@@ -213,7 +213,7 @@ pip install -r requirements.txt
 pip install pytest            # only needed for the tests
 
 python -m src.main            # writes docs/feeds/*.xml, docs/feed.xml, docs/index.html
-python -m pytest              # 146 offline tests
+python -m pytest              # 148 offline tests
 ```
 
 No key? Still works — ranking degrades to "newest first + source weight" and refinement is skipped,
@@ -248,7 +248,8 @@ working example.
 | `seen_retention_days` | `30` | Age after which seen links are pruned |
 | `max_items` | `200` | Cap on the combined feed |
 | `max_items_per_category` | `6` | Items published in each category feed per run |
-| `max_candidates_per_category` | `12` | Candidates per category that reach extraction + ranking |
+| `max_candidates_per_category` | `18` | Candidates per category that reach extraction + ranking |
+| `max_candidates_per_source` | `2` | Candidate cap per source, so one feed cannot fill a category |
 | `max_items_per_source` | `20` | Entries taken from one source per run |
 | `interest` | `""` | Reader interest description used in the ranking prompt |
 | `categories` | `[]` | `{key, label}` list; omitted ⇒ derived from feeds |
@@ -348,7 +349,7 @@ the repository.
 ### Provider notes: Zhipu BigModel (智谱 GLM)
 
 Verified end to end on a 15-source subset (same code path). The shipped configuration is larger:
-152 sources across 17 categories, up to 102 published items per run (6 per category).
+175 sources across 17 categories, up to 102 published items per run (6 per category).
 
 ```bash
 LLM_BASE_URL="https://open.bigmodel.cn/api/paas/v4"
@@ -434,7 +435,7 @@ Estimates for the defaults (`max_items_per_category: 6`, `max_input_chars: 4000`
 
 | Stage | Calls per run | Input tokens | Output tokens |
 | --- | --- | --- | --- |
-| Ranking | 17 | ~70k total | ~9k total |
+| Ranking | 17 | ~110k total | ~9k total |
 | Refinement | 102 | ~255k total | ~51k total |
 
 At `gpt-4o-mini`-class pricing that is roughly **US$0.06–0.08 per run, ≈ US$7–10 per month**.
@@ -443,6 +444,7 @@ Levers, cheapest first:
 - `max_items_per_category` — 6 → 4 cuts refinement calls by a third.
 - `llm.refine.max_input_chars` — halving it roughly halves refinement input cost.
 - `max_candidates_per_category` — smaller ranking prompts and less extraction work.
+- `max_candidates_per_source` — lower it to 1 for wider source coverage per category.
 - `llm.refine.max_output_chars` — smaller output cap, fewer output tokens.
 - `llm.refine.enabled: false` — drop refinement entirely; only ranking is billed.
 - Removing whole categories — each dropped category removes up to 6 refinement calls.
@@ -477,7 +479,7 @@ crashing the run.
 ## Tests
 
 ```bash
-python -m pytest          # 146 tests, no network, no API key
+python -m pytest          # 148 tests, no network, no API key
 ```
 
 | Area | File |
@@ -543,6 +545,8 @@ Judgement calls made where the original brief was ambiguous or contradicted itse
     warning instead of being dropped; the declared list remains authoritative.
 18. **Per-category caps, not one global cap.** `max_candidates_per_category` prevents one high-volume
     topic (Ideas, Tech) from starving quieter ones (Art, Travel) before extraction.
+    `max_candidates_per_source` does the same inside a category: with 175 sources, one prolific
+    news feed would otherwise fill every candidate slot.
 
 ---
 

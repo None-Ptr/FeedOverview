@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from typing import Optional
 
 from .models import Article
@@ -34,11 +35,39 @@ def fallback_order(articles: list[Article]) -> list[Article]:
     return sorted(articles, key=lambda item: item.sort_key(), reverse=True)
 
 
-def select_for_llm(articles: list[Article], limit: int) -> list[Article]:
-    """Pre-filter over-long candidate lists by time and source weight."""
+def select_for_llm(articles: list[Article], limit: int, max_per_source: int = 0) -> list[Article]:
+    """Pre-filter over-long candidate lists by time, weight and source diversity.
+
+    ``max_per_source`` keeps one high-volume feed from occupying every candidate
+    slot after extraction; the list is filled back up when diversity alone cannot
+    reach ``limit``.
+    """
     if limit <= 0 or len(articles) <= limit:
         return list(articles)
-    return fallback_order(articles)[:limit]
+
+    ordered = fallback_order(articles)
+    if max_per_source <= 0:
+        return ordered[:limit]
+
+    kept: list[Article] = []
+    per_source: Counter[str] = Counter()
+    for article in ordered:
+        if per_source[article.source_name] >= max_per_source:
+            continue
+        per_source[article.source_name] += 1
+        kept.append(article)
+        if len(kept) >= limit:
+            return kept
+
+    if len(kept) < limit:
+        chosen = {id(article) for article in kept}
+        for article in ordered:
+            if id(article) in chosen:
+                continue
+            kept.append(article)
+            if len(kept) >= limit:
+                break
+    return kept
 
 
 def build_ranking_messages(batch: list[Article], cfg: dict, category=None) -> list[dict]:

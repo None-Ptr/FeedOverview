@@ -42,7 +42,8 @@ DEFAULTS: dict[str, Any] = {
     "max_items": 200,
     "max_items_per_source": 20,
     "max_items_per_category": 6,
-    "max_candidates_per_category": 12,
+    "max_candidates_per_category": 18,
+    "max_candidates_per_source": 2,
     # Declared as {key, label} mappings or [key, label] pairs. When omitted,
     # categories are derived from the feeds in first-seen order.
     "categories": [],
@@ -151,7 +152,8 @@ def _validate(cfg: dict) -> None:
     cfg["max_items"] = max(1, int(cfg.get("max_items", 200)))
     cfg["max_items_per_source"] = max(1, int(cfg.get("max_items_per_source", 20)))
     cfg["max_items_per_category"] = max(1, int(cfg.get("max_items_per_category", 6)))
-    cfg["max_candidates_per_category"] = max(1, int(cfg.get("max_candidates_per_category", 12)))
+    cfg["max_candidates_per_category"] = max(1, int(cfg.get("max_candidates_per_category", 18)))
+    cfg["max_candidates_per_source"] = max(1, int(cfg.get("max_candidates_per_source", 2)))
     cfg["seen_retention_days"] = max(1, int(cfg.get("seen_retention_days", 30)))
     if not cfg.get("output_path"):
         raise ValueError("output_path must not be empty")
