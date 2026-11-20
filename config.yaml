@@ -1,11 +1,14 @@
 # ---------------------------------------------------------------------------
-# Feed aggregator configuration
+# FeedOverview configuration
+#
+# One feed per category, plus a combined feed. Category keys are stable and
+# become the file names under docs/feeds/ (News -> feeds/news.xml).
 # Values here override the built-in defaults in src/config.py.
 # ---------------------------------------------------------------------------
 
 feed_title: "FeedOverview Daily"
 feed_link: "https://your-username.github.io/FeedOverview/"
-feed_description: "News, science, tech, ideas and books from 15 sources, ranked and condensed by an LLM."
+feed_description: "Quality English articles across 17 topics, ranked and condensed for language learners."
 feed_language: "en"
 output_path: "docs/feed.xml"
 
@@ -13,27 +16,96 @@ output_path: "docs/feed.xml"
 seen_path: "cache/seen.json"
 seen_retention_days: 30
 
-# Final number of items in the output feed.
-max_items: 50
+# Combined feed cap. Per-category limits are below and are what actually
+# controls how many articles each category publishes per run.
+max_items: 200
 # Hard cap of entries taken from a single source per run.
 max_items_per_source: 20
-# Hard cap of candidates handed to the ranking step.
-max_candidates_for_llm: 80
+# Articles published in each category feed per run.
+max_items_per_category: 6
+# Candidates per category handed to body extraction and ranking.
+max_candidates_per_category: 12
 
 # Free-form description of what the reader cares about. Used in the ranking prompt.
-interest: "Technology, science and world affairs; long-form ideas and essays; practical reading that helps a language learner"
+interest: >-
+  An advanced English learner who wants to read excellent, well-written English:
+  world news, science, health, technology, business, environment, culture and
+  books. Value clear prose, real reporting, concrete detail and useful
+  vocabulary; avoid clickbait, listicles and press releases.
+
+categories:
+  - key: News
+    label: 新闻
+  - key: Science
+    label: 科学
+  - key: Health
+    label: 健康
+  - key: Tech
+    label: 科技
+  - key: Business
+    label: 商业
+  - key: Environment
+    label: 环境
+  - key: Food
+    label: 食物
+  - key: Art
+    label: 艺术
+  - key: Design
+    label: 设计
+  - key: Books
+    label: 书籍文学
+  - key: Ideas
+    label: 思想文化
+  - key: Learner
+    label: 英语学习
+  - key: Sports
+    label: 体育
+  - key: Travel
+    label: 旅行
+  - key: Education
+    label: 教育
+  - key: Policy
+    label: 政策智库
+  - key: Life
+    label: 生活
 
 feeds:
-  # News
+  # --- News ---------------------------------------------------------------
   - title: "NPR News"
     url: "https://feeds.npr.org/1001/rss.xml"
     category: "News"
-    weight: 1.0
+  - title: "NPR World"
+    url: "https://feeds.npr.org/1004/rss.xml"
+    category: "News"
   - title: "France24 English"
     url: "https://www.france24.com/en/rss"
     category: "News"
-    weight: 1.0
-  # Science
+  - title: "Sky News World"
+    url: "https://feeds.skynews.com/feeds/rss/world.xml"
+    category: "News"
+  - title: "CNBC Top"
+    url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114"
+    category: "News"
+  - title: "The Hill"
+    url: "https://thehill.com/feed/"
+    category: "News"
+  - title: "The 19th"
+    url: "https://19thnews.org/feed/"
+    category: "News"
+  - title: "BBC World"
+    url: "https://feeds.bbci.co.uk/news/world/rss.xml"
+    category: "News"
+  - title: "The Guardian World"
+    url: "https://www.theguardian.com/world/rss"
+    category: "News"
+  - title: "Al Jazeera"
+    url: "https://www.aljazeera.com/xml/rss/all.xml"
+    category: "News"
+  - title: "DW Top Stories"
+    url: "https://rss.dw.com/rdf/rss-en-top"
+    category: "News"
+
+  # --- Science ------------------------------------------------------------
   - title: "Nature"
     url: "https://www.nature.com/nature.rss"
     category: "Science"
@@ -42,66 +114,473 @@ feeds:
     url: "https://www.quantamagazine.org/feed/"
     category: "Science"
     weight: 1.2
-  # Tech
+  - title: "NPR Science"
+    url: "https://feeds.npr.org/1019/rss.xml"
+    category: "Science"
+  - title: "Space.com"
+    url: "https://www.space.com/feeds/all"
+    category: "Science"
+  - title: "Live Science"
+    url: "https://www.livescience.com/feeds/all"
+    category: "Science"
+  - title: "Popular Science"
+    url: "https://www.popsci.com/feed/"
+    category: "Science"
+  - title: "Science Daily"
+    url: "https://www.sciencedaily.com/rss/all.xml"
+    category: "Science"
+  - title: "Hakai Magazine"
+    url: "https://hakaimagazine.com/feed/"
+    category: "Science"
+  - title: "Undark"
+    url: "https://undark.org/feed/"
+    category: "Science"
+  - title: "Anthropocene"
+    url: "https://www.anthropocenemagazine.org/feed/"
+    category: "Science"
+  - title: "Nautilus"
+    url: "https://nautil.us/feed/"
+    category: "Science"
+    weight: 1.2
+  - title: "Asimov Press"
+    url: "https://www.asimov.press/feed"
+    category: "Science"
+  - title: "Science News"
+    url: "https://www.sciencenews.org/feed"
+    category: "Science"
+  - title: "Phys.org"
+    url: "https://phys.org/rss-feed/"
+    category: "Science"
+  - title: "Scientific American"
+    url: "http://rss.sciam.com/ScientificAmerican-Global"
+    category: "Science"
+  - title: "Smithsonian Magazine"
+    url: "https://www.smithsonianmag.com/rss/latest_articles/"
+    category: "Science"
+  - title: "Eos"
+    url: "https://eos.org/feed"
+    category: "Science"
+
+  # --- Health -------------------------------------------------------------
+  - title: "NPR Health"
+    url: "https://feeds.npr.org/1025/rss.xml"
+    category: "Health"
+  - title: "STAT"
+    url: "https://www.statnews.com/feed/"
+    category: "Health"
+  - title: "Medical News Today"
+    url: "https://www.medicalnewstoday.com/rss"
+    category: "Health"
+  - title: "Medical Xpress"
+    url: "https://medicalxpress.com/rss-feed/"
+    category: "Health"
+  - title: "KFF Health News"
+    url: "https://kffhealthnews.org/feed/"
+    category: "Health"
+  - title: "The Conversation Health"
+    url: "https://theconversation.com/us/health/articles.atom"
+    category: "Health"
+
+  # --- Tech ---------------------------------------------------------------
   - title: "The Verge"
     url: "https://www.theverge.com/rss/index.xml"
     category: "Tech"
-    weight: 1.2
   - title: "Ars Technica"
-    url: "http://feeds.arstechnica.com/arstechnica/index"
+    url: "https://feeds.arstechnica.com/arstechnica/index"
     category: "Tech"
     weight: 1.2
+  - title: "Wired"
+    url: "https://www.wired.com/feed/rss"
+    category: "Tech"
   - title: "Hacker News"
     url: "https://hnrss.org/frontpage"
     category: "Tech"
-    weight: 1.0
-  # Books
-  - title: "Literary Hub"
-    url: "https://lithub.com/feed/"
-    category: "Books"
-    weight: 1.0
-  - title: "Wait But Why"
-    url: "https://waitbutwhy.com/feed"
-    category: "Books"
-    weight: 1.0
-  # Ideas
-  - title: "Aeon"
-    url: "https://aeon.co/feed"
-    category: "Ideas"
-    weight: 1.1
-  - title: "Psyche"
-    url: "https://psyche.co/feed"
-    category: "Ideas"
-    weight: 1.1
-  # Learner
-  - title: "News in Levels"
-    url: "https://www.newsinlevels.com/feed/"
-    category: "Learner"
-    weight: 1.0
-  - title: "Espresso English"
-    url: "https://www.espressoenglish.net/feed/"
-    category: "Learner"
-    weight: 1.0
-  # Business
+  - title: "Engadget"
+    url: "https://www.engadget.com/rss.xml"
+    category: "Tech"
+  - title: "MIT Tech Review"
+    url: "https://www.technologyreview.com/feed/"
+    category: "Tech"
+    weight: 1.2
+  - title: "TechCrunch"
+    url: "https://techcrunch.com/feed/"
+    category: "Tech"
+  - title: "Dev.to"
+    url: "https://dev.to/feed"
+    category: "Tech"
+    weight: 0.8
+  - title: "freeCodeCamp"
+    url: "https://www.freecodecamp.org/news/rss/"
+    category: "Tech"
+  - title: "HackerNoon"
+    url: "https://hackernoon.com/feed"
+    category: "Tech"
+  - title: "InfoQ"
+    url: "https://feed.infoq.com/"
+    category: "Tech"
+  - title: "Stratechery"
+    url: "https://stratechery.com/feed/"
+    category: "Tech"
+  - title: "GitHub Blog"
+    url: "https://github.blog/feed/"
+    category: "Tech"
+  - title: "Stack Overflow Blog"
+    url: "https://stackoverflow.blog/feed/"
+    category: "Tech"
+  - title: "Simon Willison"
+    url: "https://simonwillison.net/atom/everything/"
+    category: "Tech"
+  - title: "Real Python"
+    url: "https://realpython.com/atom.xml"
+    category: "Tech"
+  - title: "Cloudflare Blog"
+    url: "https://blog.cloudflare.com/rss/"
+    category: "Tech"
+
+  # --- Business -----------------------------------------------------------
   - title: "Fortune"
     url: "https://fortune.com/feed"
     category: "Business"
-    weight: 1.0
-  # Life
+  - title: "Harvard Business Review"
+    url: "http://feeds.hbr.org/harvardbusiness"
+    category: "Business"
+    weight: 1.2
+  - title: "Quartz"
+    url: "https://qz.com/rss"
+    category: "Business"
+  - title: "Fast Company"
+    url: "https://www.fastcompany.com/rss"
+    category: "Business"
+  - title: "strategy+business"
+    url: "https://www.strategy-business.com/all_updates.xml"
+    category: "Business"
+
+  # --- Environment --------------------------------------------------------
+  - title: "Grist"
+    url: "https://grist.org/feed/"
+    category: "Environment"
+  - title: "Inside Climate News"
+    url: "https://insideclimatenews.org/feed/"
+    category: "Environment"
+  - title: "Yale Environment 360"
+    url: "https://e360.yale.edu/feed.xml"
+    category: "Environment"
+  - title: "Carbon Brief"
+    url: "https://www.carbonbrief.org/feed"
+    category: "Environment"
+  - title: "Mongabay"
+    url: "https://news.mongabay.com/feed/"
+    category: "Environment"
+  - title: "The Revelator"
+    url: "https://therevelator.org/feed/"
+    category: "Environment"
+
+  # --- Food ---------------------------------------------------------------
+  - title: "Eater"
+    url: "https://www.eater.com/rss/index.xml"
+    category: "Food"
+  - title: "Bon Appétit"
+    url: "https://www.bonappetit.com/feed/rss"
+    category: "Food"
+  - title: "Epicurious"
+    url: "https://www.epicurious.com/feed/rss"
+    category: "Food"
+  - title: "Taste of Home"
+    url: "https://www.tasteofhome.com/feed/"
+    category: "Food"
+  - title: "Food52"
+    url: "https://food52.com/blog.rss"
+    category: "Food"
+  - title: "Saveur"
+    url: "https://www.saveur.com/feed/"
+    category: "Food"
+
+  # --- Art ----------------------------------------------------------------
+  - title: "Hyperallergic"
+    url: "https://hyperallergic.com/feed/"
+    category: "Art"
+  - title: "Colossal"
+    url: "https://www.thisiscolossal.com/feed/"
+    category: "Art"
+  - title: "ARTnews"
+    url: "https://www.artnews.com/feed/"
+    category: "Art"
+  - title: "Artnet News"
+    url: "https://news.artnet.com/feed"
+    category: "Art"
+
+  # --- Design -------------------------------------------------------------
+  - title: "Smashing Magazine"
+    url: "https://www.smashingmagazine.com/feed/"
+    category: "Design"
+  - title: "A List Apart"
+    url: "https://alistapart.com/main/feed/"
+    category: "Design"
+  - title: "Dezeen"
+    url: "https://www.dezeen.com/feed/"
+    category: "Design"
+  - title: "Design Milk"
+    url: "https://design-milk.com/feed/"
+    category: "Design"
+  - title: "UX Collective"
+    url: "https://uxdesign.cc/feed"
+    category: "Design"
+  - title: "Nielsen Norman Group"
+    url: "https://www.nngroup.com/feed/rss/"
+    category: "Design"
+  - title: "CSS-Tricks"
+    url: "https://css-tricks.com/feed/"
+    category: "Design"
+
+  # --- Books --------------------------------------------------------------
+  - title: "NPR Books"
+    url: "https://feeds.npr.org/1032/rss.xml"
+    category: "Books"
+  - title: "Literary Hub"
+    url: "https://lithub.com/feed/"
+    category: "Books"
+  - title: "Longreads"
+    url: "https://longreads.com/feed/"
+    category: "Books"
+    weight: 1.2
+  - title: "The Marginalian"
+    url: "https://www.themarginalian.org/feed/"
+    category: "Books"
+    weight: 1.2
+  - title: "Wait But Why"
+    url: "https://waitbutwhy.com/feed"
+    category: "Books"
+  - title: "Electric Literature"
+    url: "https://electricliterature.com/feed/"
+    category: "Books"
+  - title: "Book Riot"
+    url: "https://bookriot.com/feed/"
+    category: "Books"
+  - title: "The Paris Review"
+    url: "https://www.theparisreview.org/blog/feed/"
+    category: "Books"
+  - title: "Arts & Letters Daily"
+    url: "https://www.aldaily.com/feed/"
+    category: "Books"
+  - title: "The Millions"
+    url: "https://themillions.com/feed"
+    category: "Books"
+  - title: "Public Books"
+    url: "https://www.publicbooks.org/feed/"
+    category: "Books"
+  - title: "The Rumpus"
+    url: "https://therumpus.net/feed/"
+    category: "Books"
+  - title: "Chicago Review of Books"
+    url: "https://chireviewofbooks.com/feed/"
+    category: "Books"
+  - title: "Granta"
+    url: "https://granta.com/feed/"
+    category: "Books"
+
+  # --- Ideas --------------------------------------------------------------
+  - title: "NPR TED"
+    url: "https://feeds.npr.org/1054/rss.xml"
+    category: "Ideas"
+  - title: "TED Blog"
+    url: "https://blog.ted.com/feed/"
+    category: "Ideas"
+  - title: "TED Ideas"
+    url: "https://ideas.ted.com/feed/"
+    category: "Ideas"
+  - title: "The Browser"
+    url: "https://thebrowser.com/feed/"
+    category: "Ideas"
+  - title: "Aeon"
+    url: "https://aeon.co/feed"
+    category: "Ideas"
+    weight: 1.2
+  - title: "Psyche"
+    url: "https://psyche.co/feed"
+    category: "Ideas"
+  - title: "3 Quarks Daily"
+    url: "https://3quarksdaily.com/feed/"
+    category: "Ideas"
+  - title: "Farnam Street"
+    url: "https://fs.blog/feed/"
+    category: "Ideas"
+  - title: "Freakonomics"
+    url: "https://freakonomics.com/feed/"
+    category: "Ideas"
+  - title: "Works in Progress"
+    url: "https://www.worksinprogress.news/feed"
+    category: "Ideas"
+    weight: 1.2
+  - title: "Mental Floss"
+    url: "https://www.mentalfloss.com/feed"
+    category: "Ideas"
+  - title: "JSTOR Daily"
+    url: "https://daily.jstor.org/feed/"
+    category: "Ideas"
+  - title: "HistoryExtra"
+    url: "https://www.historyextra.com/feed/"
+    category: "Ideas"
+  - title: "Nieman Lab"
+    url: "https://www.niemanlab.org/feed/"
+    category: "Ideas"
+  - title: "Our World in Data"
+    url: "https://ourworldindata.org/feed"
+    category: "Ideas"
+    weight: 1.2
+  - title: "Big Think"
+    url: "https://bigthink.com/feed/"
+    category: "Ideas"
+  - title: "The Conversation"
+    url: "https://theconversation.com/us/articles.atom"
+    category: "Ideas"
+  - title: "Noema"
+    url: "https://www.noemamag.com/feed/"
+    category: "Ideas"
+
+  # --- Learner ------------------------------------------------------------
+  - title: "News in Levels"
+    url: "https://www.newsinlevels.com/feed/"
+    category: "Learner"
+  - title: "Grammarly Blog"
+    url: "https://www.grammarly.com/blog/feed/"
+    category: "Learner"
+  - title: "Open Culture"
+    url: "https://www.openculture.com/feed"
+    category: "Learner"
+  - title: "Daily Writing Tips"
+    url: "https://www.dailywritingtips.com/feed/"
+    category: "Learner"
+  - title: "Writing Excuses"
+    url: "https://writingexcuses.com/feed/"
+    category: "Learner"
+  - title: "Espresso English"
+    url: "https://www.espressoenglish.net/feed/"
+    category: "Learner"
+  - title: "engVid"
+    url: "https://www.engvid.com/feed/"
+    category: "Learner"
+  - title: "FluentU Blog"
+    url: "https://www.fluentu.com/blog/english/feed/"
+    category: "Learner"
+  - title: "A Way with Words"
+    url: "https://waywordradio.org/feed/"
+    category: "Learner"
+  - title: "Grammar Girl"
+    url: "https://www.quickanddirtytips.com/grammar-girl/feed"
+    category: "Learner"
+  - title: "Grammarphobia"
+    url: "https://grammarphobia.com/blog/feed"
+    category: "Learner"
+
+  # --- Sports -------------------------------------------------------------
+  - title: "Sky Sports"
+    url: "https://www.skysports.com/rss/12040"
+    category: "Sports"
+  - title: "SB Nation"
+    url: "https://www.sbnation.com/rss/index.xml"
+    category: "Sports"
+  - title: "Escape Collective"
+    url: "https://escapecollective.com/rss/"
+    category: "Sports"
+  - title: "BBC Sport"
+    url: "https://feeds.bbci.co.uk/sport/rss.xml"
+    category: "Sports"
+  - title: "The Guardian Sport"
+    url: "https://www.theguardian.com/uk/sports/rss"
+    category: "Sports"
+  - title: "ESPN"
+    url: "https://www.espn.com/espn/rss/news"
+    category: "Sports"
+
+  # --- Travel -------------------------------------------------------------
+  - title: "Skift"
+    url: "https://skift.com/feed/"
+    category: "Travel"
+  - title: "Matador Network"
+    url: "https://matadornetwork.com/feed/"
+    category: "Travel"
+  - title: "Atlas Obscura"
+    url: "https://www.atlasobscura.com/feeds/latest"
+    category: "Travel"
+  - title: "Nomadic Matt"
+    url: "https://www.nomadicmatt.com/travel-blog/feed/"
+    category: "Travel"
+  - title: "The Points Guy"
+    url: "https://thepointsguy.com/feed/"
+    category: "Travel"
+
+  # --- Education ----------------------------------------------------------
+  - title: "Inside Higher Ed"
+    url: "https://www.insidehighered.com/rss.xml"
+    category: "Education"
+  - title: "The Hechinger Report"
+    url: "https://hechingerreport.org/feed/"
+    category: "Education"
+  - title: "Higher Ed Dive"
+    url: "https://www.highereddive.com/feeds/news/"
+    category: "Education"
+  - title: "KQED MindShift"
+    url: "https://ww2.kqed.org/mindshift/feed/"
+    category: "Education"
+  - title: "TeachThought"
+    url: "https://www.teachthought.com/feed/"
+    category: "Education"
+  - title: "The 74"
+    url: "https://www.the74million.org/feed/"
+    category: "Education"
+  - title: "Education Week"
+    url: "https://www.edweek.org/arc/outboundfeeds/rss/?outputType=xml"
+    category: "Education"
+  - title: "Faculty Focus"
+    url: "https://www.facultyfocus.com/feed/"
+    category: "Education"
+
+  # --- Policy -------------------------------------------------------------
+  - title: "Bruegel"
+    url: "https://www.bruegel.org/rss.xml"
+    category: "Policy"
+  - title: "Aspen Institute"
+    url: "https://www.aspeninstitute.org/feed/"
+    category: "Policy"
+  - title: "Brookings"
+    url: "https://www.brookings.edu/feed/"
+    category: "Policy"
+  - title: "Pew Research Center"
+    url: "https://www.pewresearch.org/feed/"
+    category: "Policy"
+  - title: "War on the Rocks"
+    url: "https://warontherocks.com/feed/"
+    category: "Policy"
+  - title: "The Diplomat"
+    url: "https://thediplomat.com/feed/"
+    category: "Policy"
+
+  # --- Life ---------------------------------------------------------------
   - title: "Lifehacker"
     url: "https://lifehacker.com/rss"
     category: "Life"
-    weight: 0.9
+  - title: "Zen Habits"
+    url: "https://zenhabits.net/feed/"
+    category: "Life"
+  - title: "Mindful"
+    url: "https://www.mindful.org/feed/"
+    category: "Life"
+  - title: "Tiny Buddha"
+    url: "https://tinybuddha.com/feed/"
+    category: "Life"
+  - title: "Remodelista"
+    url: "https://www.remodelista.com/feed/"
+    category: "Life"
 
 extract:
-  timeout: 15          # seconds per HTTP request
-  retries: 2           # retries after the first failure
-  max_workers: 5       # concurrent page downloads
+  timeout: 12          # seconds per HTTP request
+  retries: 1           # retries after the first failure
+  max_workers: 10      # concurrent feed downloads and page extractions
   user_agent: "Mozilla/5.0 (compatible; FeedAggregator/1.0; +https://github.com/) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
   fast: true           # trafilatura: skip the slower fallback extractors
   favor_recall: true   # trafilatura: prefer recall over precision
   max_content_chars: 8000   # body length kept in memory / feed
-  min_content_chars: 80     # below this, treat extraction as failed and use the RSS summary
+  min_content_chars: 80     # below this, treat extraction as failed and drop the article
 
 llm:
   # api_key / base_url come from the environment (LLM_API_KEY, LLM_BASE_URL).
@@ -127,11 +606,14 @@ llm:
       type: disabled
 
   ranking_criteria: |
-    1. Relevance to the reader's interests in books, literary criticism and long-form essays.
-    2. Substance: original argument, close reading or reported depth beats listicles and
-       promotional posts.
-    3. Freshness: newer articles win when everything else is equal.
-    4. Diversity: keep only the most valuable article per topic, avoid near-duplicates.
+    1. Writing quality: clear, well-structured English worth reading as a model of good prose.
+    2. Substance: original reporting, evidence and concrete detail beat listicles, SEO round-ups
+       and press releases.
+    3. Learning value: explains an idea or a development clearly, with useful vocabulary and
+       context for an English learner.
+    4. Freshness: newer articles win when everything else is equal.
+    5. Diversity: within a category, keep only the most valuable article per topic and avoid
+       near-duplicates.
 
   refine:
     enabled: true

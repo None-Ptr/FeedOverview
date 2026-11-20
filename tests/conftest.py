@@ -2,6 +2,8 @@
 
 import pytest
 
+from src.categories import Category
+
 
 @pytest.fixture
 def cfg() -> dict:
@@ -15,7 +17,9 @@ def cfg() -> dict:
         "seen_retention_days": 30,
         "max_items": 5,
         "max_items_per_source": 3,
-        "max_candidates_for_llm": 10,
+        "max_items_per_category": 5,
+        "max_candidates_per_category": 10,
+        "categories": [Category("News", "新闻")],
         "interest": "Python and developer tooling",
         "feeds": [{"name": "Example", "url": "https://example.com/rss", "weight": 1.0}],
         "extract": {

@@ -41,11 +41,12 @@ def select_for_llm(articles: list[Article], limit: int) -> list[Article]:
     return fallback_order(articles)[:limit]
 
 
-def build_ranking_messages(batch: list[Article], cfg: dict) -> list[dict]:
+def build_ranking_messages(batch: list[Article], cfg: dict, category=None) -> list[dict]:
     llm_cfg = cfg.get("llm", {})
     interest = (cfg.get("interest") or "").strip() or "general software engineering and tooling"
     criteria = (llm_cfg.get("ranking_criteria") or "").strip() or "Relevance, information density, practical value, freshness, diversity."
     preview_chars = max(200, int(llm_cfg.get("max_summary_chars", 1200)))
+    category_line = f"Category: {category.label} ({category.key})\n" if category is not None else ""
 
     blocks: list[str] = []
     for index, article in enumerate(batch):
@@ -60,6 +61,7 @@ def build_ranking_messages(batch: list[Article], cfg: dict) -> list[dict]:
 
     user_prompt = (
         f"Reader interests: {interest}\n\n"
+        f"{category_line}"
         f"Ranking criteria:\n{criteria}\n\n"
         f"Score and rank the {len(batch)} candidate articles below.\n\n"
         + "\n\n".join(blocks)
@@ -107,7 +109,7 @@ def parse_ranking_response(data: Optional[dict], batch_size: int, offset: int = 
     return scores or None
 
 
-def rank_articles(articles: list[Article], cfg: dict, llm=None) -> list[Article]:
+def rank_articles(articles: list[Article], cfg: dict, llm=None, category=None) -> list[Article]:
     """Rank candidates with the LLM; degrade gracefully to time + weight ordering."""
     items = list(articles)
     if not items:
@@ -126,7 +128,11 @@ def rank_articles(articles: list[Article], cfg: dict, llm=None) -> list[Article]
         batch = items[offset : offset + batch_size]
         try:
             # Deterministic samples: ranking should not drift between runs.
-            data = llm.chat_json(build_ranking_messages(batch, cfg), retries=1, temperature=0.0)
+            data = llm.chat_json(
+                build_ranking_messages(batch, cfg, category=category),
+                retries=1,
+                temperature=0.0,
+            )
         except Exception as exc:  # noqa: BLE001 - a ranking failure must not abort the run
             logger.warning("Ranking call crashed at offset %d: %s", offset, exc)
             data = None

@@ -2,8 +2,10 @@
 
 import json
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import src.main as main_module
+from src.categories import Category
 
 from tests.helpers import make_article
 
@@ -86,3 +88,29 @@ def test_all_extraction_failures_still_produce_a_valid_feed(cfg, tmp_path, monke
     root = ET.parse(cfg["output_path"]).getroot()
     assert root.findall("./channel/item") == []
     assert root.findtext("./channel/title") == "Test Feed"
+
+
+def test_writes_one_feed_per_category(cfg, tmp_path, monkeypatch):
+    _prepare(cfg, tmp_path, monkeypatch)
+    cfg["categories"] = [Category("News", "新闻"), Category("Science", "科学")]
+    articles = [
+        make_article(title="News story", link="https://example.com/news", content=BODY, category="News"),
+        make_article(
+            title="Science story", link="https://example.com/science", content=BODY, category="Science"
+        ),
+    ]
+    monkeypatch.setattr(main_module, "fetch_all", lambda c: articles)
+
+    assert main_module.run(cfg) == 0
+
+    docs = Path(cfg["output_path"]).parent
+    news = ET.parse(docs / "feeds" / "news.xml").getroot()
+    science = ET.parse(docs / "feeds" / "science.xml").getroot()
+    assert [item.findtext("title") for item in news.findall("./channel/item")] == ["News story"]
+    assert [item.findtext("title") for item in science.findall("./channel/item")] == ["Science story"]
+    assert news.findtext("./channel/title").endswith("新闻")
+    assert science.findtext("./channel/title").endswith("科学")
+
+    combined = ET.parse(cfg["output_path"]).getroot()
+    assert len(combined.findall("./channel/item")) == 2
+    assert (docs / "index.html").is_file()

@@ -2,6 +2,7 @@
 
 import xml.etree.ElementTree as ET
 
+from src.categories import Category
 from src.feedbuild import write_feed
 
 from tests.helpers import make_article
@@ -70,6 +71,27 @@ class TestFeedOutput:
         out = write_feed(ranked, cfg, path=str(tmp_path / "feed.xml"))
         titles = [item.findtext("title") for item in _parse(out).findall("./channel/item")]
         assert titles == ["best", "second", "third"]
+
+    def test_category_feed_carries_title_and_category(self, cfg, tmp_path):
+        article = make_article(
+            link="https://example.com/post",
+            category="Science",
+            category_label="科学",
+        )
+        category = Category("Science", "科学")
+        out = write_feed(
+            [article],
+            cfg,
+            path=str(tmp_path / "feeds" / "science.xml"),
+            title="Test Feed · 科学",
+            description="科学 (Science)",
+            category=category,
+        )
+        root = _parse(out)
+        assert root.findtext("./channel/title") == "Test Feed · 科学"
+        assert root.findtext("./channel/description") == "科学 (Science)"
+        assert root.findtext("./channel/category") == "科学"
+        assert root.findtext("./channel/item/category") == "科学"
 
     def test_empty_feed_is_still_valid(self, cfg, tmp_path):
         out = write_feed([], cfg, path=str(tmp_path / "feed.xml"))

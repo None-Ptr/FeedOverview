@@ -27,6 +27,8 @@ def fetch_feed(feed_cfg: dict, extract_cfg: dict, limit: int) -> list[Article]:
     name = str(feed_cfg.get("name") or feed_cfg.get("url") or "unknown")
     url = str(feed_cfg.get("url") or "")
     weight = float(feed_cfg.get("weight", 1.0) or 1.0)
+    category = str(feed_cfg.get("category") or "")
+    category_label = str(feed_cfg.get("category_label") or "")
     if not url:
         logger.warning("Feed %s has no url, skipped", name)
         return []
@@ -63,6 +65,8 @@ def fetch_feed(feed_cfg: dict, extract_cfg: dict, limit: int) -> list[Article]:
                 source_name=name,
                 source_weight=weight,
                 source_url=url,
+                category=category,
+                category_label=category_label,
                 published=entry_datetime(entry),
                 summary=_entry_summary(entry),
             )

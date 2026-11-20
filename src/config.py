@@ -10,6 +10,15 @@ from typing import Any
 
 import yaml
 
+from .categories import (
+    UNCATEGORIZED_KEY,
+    UNCATEGORIZED_LABEL,
+    Category,
+    derive_categories,
+    find_category,
+    normalize_categories,
+)
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_CRITERIA = (
@@ -29,9 +38,14 @@ DEFAULTS: dict[str, Any] = {
     "output_path": "docs/feed.xml",
     "seen_path": "cache/seen.json",
     "seen_retention_days": 30,
-    "max_items": 50,
+    # Combined feed cap; per-category caps live below.
+    "max_items": 200,
     "max_items_per_source": 20,
-    "max_candidates_for_llm": 80,
+    "max_items_per_category": 6,
+    "max_candidates_per_category": 12,
+    # Declared as {key, label} mappings or [key, label] pairs. When omitted,
+    # categories are derived from the feeds in first-seen order.
+    "categories": [],
     "interest": "",
     "feeds": [],
     "extract": {
@@ -126,13 +140,46 @@ def _validate(cfg: dict) -> None:
                 "name": str(feed.get("name") or feed.get("title") or feed["url"]),
                 "url": str(feed["url"]),
                 "weight": float(feed.get("weight", 1.0) or 1.0),
+                "category": str(feed.get("category") or "").strip(),
             }
         )
-    cfg["feeds"] = cleaned
 
-    cfg["max_items"] = max(1, int(cfg.get("max_items", 50)))
+    cfg["feeds"], cfg["categories"] = _assign_categories(
+        cleaned, normalize_categories(cfg.get("categories"))
+    )
+
+    cfg["max_items"] = max(1, int(cfg.get("max_items", 200)))
     cfg["max_items_per_source"] = max(1, int(cfg.get("max_items_per_source", 20)))
-    cfg["max_candidates_for_llm"] = max(1, int(cfg.get("max_candidates_for_llm", 80)))
+    cfg["max_items_per_category"] = max(1, int(cfg.get("max_items_per_category", 6)))
+    cfg["max_candidates_per_category"] = max(1, int(cfg.get("max_candidates_per_category", 12)))
     cfg["seen_retention_days"] = max(1, int(cfg.get("seen_retention_days", 30)))
     if not cfg.get("output_path"):
         raise ValueError("output_path must not be empty")
+
+
+def _assign_categories(feeds: list[dict], declared: list[Category]) -> tuple[list[dict], list[Category]]:
+    """Resolve every feed's category against the declared list and store it back."""
+    categories = declared or derive_categories(feed["category"] for feed in feeds)
+    if not categories:
+        categories = [Category(UNCATEGORIZED_KEY, UNCATEGORIZED_LABEL)]
+
+    uncategorized: Category | None = None
+    for feed in feeds:
+        category = find_category(categories, feed["category"])
+        if category is None:
+            if uncategorized is None:
+                uncategorized = find_category(categories, UNCATEGORIZED_KEY)
+                if uncategorized is None:
+                    uncategorized = Category(UNCATEGORIZED_KEY, UNCATEGORIZED_LABEL)
+                    categories.append(uncategorized)
+            logger.warning(
+                "Feed %s has category %r which is not declared; grouping it under %s",
+                feed["name"],
+                feed["category"],
+                UNCATEGORIZED_KEY,
+            )
+            category = uncategorized
+        feed["category"] = category.key
+        feed["category_label"] = category.label
+
+    return feeds, categories

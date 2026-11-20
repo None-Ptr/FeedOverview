@@ -40,7 +40,16 @@ def test_title_is_accepted_as_name_alias(tmp_path):
         "    category: 'Books'\n",
     )
     cfg = load_config(path)
-    assert cfg["feeds"] == [{"name": "NPR Books", "url": "https://feeds.npr.org/1032/rss.xml", "weight": 1.0}]
+    assert cfg["feeds"] == [
+        {
+            "name": "NPR Books",
+            "url": "https://feeds.npr.org/1032/rss.xml",
+            "weight": 1.0,
+            "category": "Books",
+            "category_label": "Books",
+        }
+    ]
+    assert [category.key for category in cfg["categories"]] == ["Books"]
 
 
 def test_feed_without_url_is_dropped(tmp_path):
@@ -81,10 +90,69 @@ def test_numeric_strings_are_coerced(tmp_path):
 
 
 def test_non_positive_limits_are_clamped(tmp_path):
-    cfg = load_config(_write(tmp_path, "max_items: 0\nmax_candidates_for_llm: -3\nseen_retention_days: 0\n"))
+    cfg = load_config(
+        _write(tmp_path, "max_items: 0\nmax_candidates_per_category: -3\nseen_retention_days: 0\n")
+    )
     assert cfg["max_items"] == 1
-    assert cfg["max_candidates_for_llm"] == 1
+    assert cfg["max_candidates_per_category"] == 1
     assert cfg["seen_retention_days"] == 1
+
+
+def test_declared_categories_are_resolved_case_insensitively(tmp_path):
+    path = _write(
+        tmp_path,
+        "categories:\n"
+        "  - key: News\n"
+        "    label: 新闻\n"
+        "  - key: Science\n"
+        "    label: 科学\n"
+        "feeds:\n"
+        "  - name: 'NPR'\n"
+        "    url: 'https://a.com/rss'\n"
+        "    category: 'news'\n",
+    )
+    cfg = load_config(path)
+    assert [(category.key, category.label) for category in cfg["categories"]] == [
+        ("News", "新闻"),
+        ("Science", "科学"),
+    ]
+    assert cfg["feeds"][0]["category"] == "News"
+    assert cfg["feeds"][0]["category_label"] == "新闻"
+
+
+def test_categories_are_derived_from_feeds_in_order(tmp_path):
+    path = _write(
+        tmp_path,
+        "feeds:\n"
+        "  - name: 'a'\n"
+        "    url: 'https://a.com/rss'\n"
+        "    category: 'Science'\n"
+        "  - name: 'b'\n"
+        "    url: 'https://b.com/rss'\n"
+        "    category: 'News'\n"
+        "  - name: 'c'\n"
+        "    url: 'https://c.com/rss'\n"
+        "    category: 'Science'\n",
+    )
+    cfg = load_config(path)
+    assert [category.key for category in cfg["categories"]] == ["Science", "News"]
+
+
+def test_unknown_category_falls_back_to_uncategorized(tmp_path):
+    path = _write(
+        tmp_path,
+        "categories:\n"
+        "  - key: News\n"
+        "    label: 新闻\n"
+        "feeds:\n"
+        "  - name: 'a'\n"
+        "    url: 'https://a.com/rss'\n"
+        "    category: 'Astrology'\n",
+    )
+    cfg = load_config(path)
+    assert [category.key for category in cfg["categories"]] == ["News", "Uncategorized"]
+    assert cfg["feeds"][0]["category"] == "Uncategorized"
+    assert cfg["feeds"][0]["category_label"] == "未分类"
 
 
 def test_empty_output_path_raises(tmp_path):

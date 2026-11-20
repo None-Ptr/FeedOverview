@@ -19,6 +19,10 @@ class Article:
     source_name: str
     source_weight: float = 1.0
     source_url: str = ""
+    # Category key and label copied from the feed definition; used to group
+    # articles into the per-category output feeds.
+    category: str = ""
+    category_label: str = ""
     published: Optional[datetime] = None
     summary: str = ""
     content: str = ""

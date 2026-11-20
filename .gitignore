@@ -15,3 +15,4 @@ htmlcov/
 
 # Local scratch output (docs/ and cache/ are tracked on purpose)
 tmp/
+feed-check.md

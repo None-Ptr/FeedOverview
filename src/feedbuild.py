@@ -62,18 +62,31 @@ def build_description(article: Article) -> str:
     return "".join(parts)
 
 
-def build_feed(articles: list[Article], cfg: dict, now: Optional[datetime] = None) -> FeedGenerator:
+def build_feed(
+    articles: list[Article],
+    cfg: dict,
+    now: Optional[datetime] = None,
+    *,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    category=None,
+) -> FeedGenerator:
     now = now or datetime.now(timezone.utc)
     feed_link = sanitize_xml(str(cfg.get("feed_link") or "https://example.com/"))
 
     generator = FeedGenerator()
     generator.id(feed_link)
-    generator.title(sanitize_xml(str(cfg.get("feed_title") or "Curated Feed")))
+    generator.title(sanitize_xml(str(title or cfg.get("feed_title") or "Curated Feed")))
     generator.link(href=feed_link, rel="alternate")
-    generator.description(sanitize_xml(str(cfg.get("feed_description") or "")))
+    feed_description = cfg.get("feed_description") or ""
+    if description is not None:
+        feed_description = description
+    generator.description(sanitize_xml(str(feed_description)))
     generator.language(sanitize_xml(str(cfg.get("feed_language") or "en")))
     generator.lastBuildDate(now)
     generator.generator("feed-aggregator")
+    if category is not None:
+        generator.category(term=category.key, label=category.label)
 
     for article in articles:
         link = sanitize_xml(article.link)
@@ -85,6 +98,10 @@ def build_feed(articles: list[Article], cfg: dict, now: Optional[datetime] = Non
         entry.link(href=link, rel="alternate")
         entry.description(build_description(article))
         entry.pubDate(article.published or now)
+        if article.category or category is not None:
+            key = article.category or category.key
+            label = article.category_label or (category.label if category is not None else key)
+            entry.category(term=key, label=label)
         if article.source_url:
             try:
                 entry.source(url=sanitize_xml(article.source_url), title=sanitize_xml(article.source_name))
@@ -94,12 +111,28 @@ def build_feed(articles: list[Article], cfg: dict, now: Optional[datetime] = Non
     return generator
 
 
-def write_feed(articles: list[Article], cfg: dict, path: Optional[str] = None, now: Optional[datetime] = None) -> Path:
+def write_feed(
+    articles: list[Article],
+    cfg: dict,
+    path: Optional[str] = None,
+    now: Optional[datetime] = None,
+    *,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    category=None,
+) -> Path:
     """Write the feed atomically so a crash never leaves a half-written file."""
     out = Path(path or cfg.get("output_path") or "docs/feed.xml")
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    payload = build_feed(articles, cfg, now=now).rss_str(pretty=True)
+    payload = build_feed(
+        articles,
+        cfg,
+        now=now,
+        title=title,
+        description=description,
+        category=category,
+    ).rss_str(pretty=True)
     data = payload.encode("utf-8") if isinstance(payload, str) else payload
     if not data.lstrip().startswith(b"<?xml"):
         data = b'<?xml version="1.0" encoding="UTF-8"?>\n' + data
