@@ -1,60 +1,79 @@
-"""Per-article LLM refinement (condense + light copy editing), with per-item fallback."""
+"""Per-article LLM clean-up: the model names the sentences that are not worth reading.
+
+The body is numbered sentence by sentence, the model answers with the indices to
+delete, and the kept sentences are stitched back together unchanged. Nothing is
+rewritten or summarised, so an imperfect model can only remove text, never
+invent it.
+"""
 
 from __future__ import annotations
 
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 from .models import Article
-from .textutil import truncate
+from .textutil import split_sentences, truncate
 
 logger = logging.getLogger(__name__)
 
 MIN_BODY_CHARS = 80
-MIN_REFINED_CHARS = 20
+# Fewer sentences than this leaves nothing meaningful to choose between.
+MIN_SENTENCES = 3
+MIN_KEPT_CHARS = 20
 MAX_TITLE_CHARS = 200
 
-DEFAULT_STYLE = (
-    "Write concise, objective prose. Keep key data and conclusions, drop redundant wording "
-    "and repetition. Never change facts or add information that is not in the source."
+_PARAGRAPH_SPLIT_RE = re.compile(r"\n+")
+
+DEFAULT_GUIDE = (
+    "Delete a sentence only when it is not article content: navigation, "
+    "share/subscribe/app prompts, cookie or legal notices, advertising and sponsorship text, "
+    '"read more" and related-link blocks, author bios and contact details, photo credits, '
+    "sentences repeated elsewhere in the text, and jargon-heavy disclaimers or methodology "
+    "asides that a reader can skip without losing the story. Never delete a sentence that "
+    "carries facts, figures, quotes or the author's argument, and never delete sentences just "
+    "to make the article shorter."
 )
 
 REFINE_SYSTEM_PROMPT = (
-    "You are a careful technical editor. You condense articles while preserving every fact, "
-    "figure and conclusion, and you never invent information. You respond with a single JSON "
-    "object and nothing else: no prose, no markdown fences."
+    "You are a careful copy editor preparing a scraped web article for an English learner. "
+    "You never rewrite, reorder or summarise: you only choose whole sentences to delete. "
+    "You respond with a single JSON object and nothing else: no prose, no markdown fences."
 )
 
 
-def build_refine_messages(article: Article, body: str, cfg: dict) -> list[dict]:
+def build_refine_messages(article: Article, numbered: list[tuple[int, str]], cfg: dict) -> list[dict]:
     refine_cfg = (cfg.get("llm", {}) or {}).get("refine", {}) or {}
-    style = str(refine_cfg.get("style") or "").strip() or DEFAULT_STYLE
-    max_output = int(refine_cfg.get("max_output_chars", 800))
+    guide = str(refine_cfg.get("drop_criteria") or "").strip() or DEFAULT_GUIDE
     keep_title = bool(refine_cfg.get("keep_title", True))
 
     if keep_title:
-        title_rule = 'Do not return a "title" field; the title must stay unchanged.'
-        json_hint = '{"refined":"..."}'
+        title_rule = 'Do not return a "title" field; the title stays unchanged.'
+        json_hint = '{"drop":[2]}'
     else:
         title_rule = (
-            'You may return an improved headline as "title" if it clearly helps; '
+            'You may add an improved "title" when the current one is unclear or clickbait; '
             "otherwise omit the field."
         )
-        json_hint = '{"refined":"...","title":"..."}'
+        json_hint = '{"drop":[2],"title":"..."}'
 
+    listing = "\n".join(f"{index}: {text}" for index, text in numbered)
     user_prompt = (
-        f"Editing style: {style}\n\n"
+        f"What to delete: {guide}\n\n"
         "Hard constraints:\n"
-        "- Preserve all facts, figures, outcomes and the author's stance; never invent content.\n"
-        f"- Keep the result under roughly {max_output} characters.\n"
-        "- Stay objective, readable and tightly structured; use short paragraphs.\n"
-        "- Do not add ratings, commentary, calls to action or notes about the editing itself.\n"
+        "- You are choosing sentences to delete, not rewriting them. Kept sentences must stay "
+        "exactly as written, in their original order.\n"
+        "- Use only the indices listed below; never merge or reorder sentences.\n"
+        "- Length is not a reason to delete: an article with nothing to remove gets an empty list.\n"
+        "- Do not add ratings, commentary or notes about the editing itself.\n"
         f"- {title_rule}\n\n"
         f"Source: {article.source_name}\n"
         f"Original title: {article.title}\n\n"
-        f"Original body (may be truncated):\n{body}\n\n"
-        f"Return exactly one JSON object: {json_hint}"
+        "Sentences (index: text):\n"
+        f"{listing}\n\n"
+        f"Return exactly one JSON object: {json_hint}\n"
+        'List every index to delete, or use an empty list when nothing should be removed.'
     )
     return [
         {"role": "system", "content": REFINE_SYSTEM_PROMPT},
@@ -63,7 +82,7 @@ def build_refine_messages(article: Article, body: str, cfg: dict) -> list[dict]:
 
 
 def refine_articles(articles: list[Article], cfg: dict, llm=None) -> None:
-    """Refine bodies in place. Never raises; each item falls back independently."""
+    """Clean up bodies in place. Never raises; each item falls back independently."""
     items = list(articles)
     if not items:
         return
@@ -92,13 +111,13 @@ def refine_articles(articles: list[Article], cfg: dict, llm=None) -> None:
 
     refined = sum(1 for article in items if article.refined_content and not article.refine_failed)
     failed = sum(1 for article in items if article.refine_failed)
-    logger.info("Refinement finished: %d refined, %d fell back to the original body", refined, failed)
+    logger.info("Refinement finished: %d cleaned, %d fell back to the original body", refined, failed)
 
 
 def _refine_one(article: Article, cfg: dict, llm) -> None:
     refine_cfg = (cfg.get("llm", {}) or {}).get("refine", {}) or {}
     max_input = int(refine_cfg.get("max_input_chars", 4000))
-    max_output = int(refine_cfg.get("max_output_chars", 800))
+    max_drop_ratio = float(refine_cfg.get("max_drop_ratio", 0.4))
     keep_title = bool(refine_cfg.get("keep_title", True))
 
     body = (article.content or article.summary or "").strip()
@@ -108,7 +127,14 @@ def _refine_one(article: Article, cfg: dict, llm) -> None:
         logger.info("Body of %s too short to refine (%d chars), keeping it as is", article.link, len(body))
         return
 
-    messages = build_refine_messages(article, fallback, cfg)
+    paragraphs = number_sentences(fallback)
+    total = sum(len(paragraph) for paragraph in paragraphs)
+    if total < MIN_SENTENCES:
+        logger.info("Body of %s has only %d sentences, nothing to choose between", article.link, total)
+        return
+
+    numbered = [(index, text) for paragraph in paragraphs for index, text in paragraph]
+    messages = build_refine_messages(article, numbered, cfg)
     try:
         data = llm.chat_json(messages, retries=1)
     except Exception as exc:  # noqa: BLE001 - defensive, chat_json already catches
@@ -119,13 +145,25 @@ def _refine_one(article: Article, cfg: dict, llm) -> None:
         _apply_fallback(article, fallback, "no usable JSON response")
         return
 
-    refined = data.get("refined")
-    if not isinstance(refined, str) or len(refined.strip()) < MIN_REFINED_CHARS:
-        _apply_fallback(article, fallback, "missing or too short 'refined' field")
+    drop = parse_drop_indices(data, total)
+    if drop is None:
+        _apply_fallback(article, fallback, "missing or unusable 'drop' list")
         return
 
-    article.refined_content = truncate(refined.strip(), max_output)
+    if len(drop) > int(total * max_drop_ratio):
+        _apply_fallback(
+            article, fallback, f"model asked to delete {len(drop)} of {total} sentences"
+        )
+        return
+
+    kept = rebuild_body(paragraphs, drop)
+    if len(kept) < MIN_KEPT_CHARS:
+        _apply_fallback(article, fallback, "kept text would be too short")
+        return
+
+    article.refined_content = kept
     article.refine_failed = False
+    logger.debug("Cleaned %s: dropped %d of %d sentences", article.link, len(drop), total)
 
     if not keep_title:
         candidate_title = data.get("title")
@@ -133,6 +171,54 @@ def _refine_one(article: Article, cfg: dict, llm) -> None:
             cleaned = candidate_title.strip()
             if 0 < len(cleaned) <= MAX_TITLE_CHARS:
                 article.refined_title = cleaned
+
+
+def number_sentences(body: str) -> list[list[tuple[int, str]]]:
+    """Group sentences by paragraph and number them 1..N across the whole body."""
+    paragraphs: list[list[tuple[int, str]]] = []
+    counter = 0
+    for block in _PARAGRAPH_SPLIT_RE.split(body or ""):
+        units = split_sentences(block)
+        if not units:
+            continue
+        numbered = []
+        for unit in units:
+            counter += 1
+            numbered.append((counter, unit))
+        paragraphs.append(numbered)
+    return paragraphs
+
+
+def parse_drop_indices(data: dict, count: int) -> Optional[set[int]]:
+    """Return the 1-based sentence indices to delete, or None when unusable."""
+    raw = data.get("drop")
+    if not isinstance(raw, list):
+        return None
+
+    indices: set[int] = set()
+    for item in raw:
+        if isinstance(item, bool):
+            continue
+        try:
+            index = int(item)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= index <= count:
+            indices.add(index)
+
+    if raw and not indices:
+        return None
+    return indices
+
+
+def rebuild_body(paragraphs: list[list[tuple[int, str]]], drop: set[int]) -> str:
+    """Join the kept sentences, preserving paragraph breaks and original wording."""
+    kept_paragraphs = []
+    for paragraph in paragraphs:
+        kept = [text for index, text in paragraph if index not in drop]
+        if kept:
+            kept_paragraphs.append(" ".join(kept))
+    return "\n\n".join(kept_paragraphs)
 
 
 def _fallback_text(article: Article, cfg: dict) -> str:

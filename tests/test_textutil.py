@@ -1,6 +1,6 @@
-"""URL normalization, truncation and HTML stripping."""
+"""URL normalization, truncation, sentence splitting and HTML stripping."""
 
-from src.textutil import normalize_url, strip_html, truncate
+from src.textutil import collapse_whitespace, normalize_url, split_sentences, strip_html, truncate
 
 
 class TestNormalizeUrl:
@@ -45,6 +45,31 @@ class TestTruncate:
         result = truncate(text, 60)
         assert len(result) <= 60
         assert result.endswith("…")
+
+
+class TestSplitSentences:
+    def test_splits_on_end_punctuation(self):
+        assert split_sentences("One here. Two there! Three?") == ["One here.", "Two there!", "Three?"]
+
+    def test_keeps_abbreviations_inside_the_sentence(self):
+        assert split_sentences("Dr. Lee spoke to the U.S. team.") == ["Dr. Lee spoke to the U.S. team."]
+
+    def test_closing_quote_stays_with_the_sentence(self):
+        assert split_sentences('She said, "Done." Then she left.') == [
+            'She said, "Done."',
+            "Then she left.",
+        ]
+
+    def test_units_rejoin_to_the_original(self):
+        text = "  First  sentence here.  Second one! Third?  "
+        joined = " ".join(split_sentences(text))
+        assert collapse_whitespace(joined) == collapse_whitespace(text)
+
+    def test_text_without_punctuation_is_one_unit(self):
+        assert split_sentences("A headline without punctuation") == ["A headline without punctuation"]
+
+    def test_empty(self):
+        assert split_sentences("") == []
 
 
 class TestStripHtml:

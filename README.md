@@ -2,16 +2,16 @@
 
 # FeedOverview
 
-**Many RSS sources in. One calm, curated, AI-condensed feed per topic out.**
+**Many RSS sources in. One calm, curated, AI-trimmed feed per topic out.**
 
 A zero-server aggregator built for English learners: it fetches 150+ quality English sources,
 groups them into 17 topics — news, science, health, tech, business, environment, food, art, design,
 books, ideas, learner, sports, travel, education, policy and life — extracts the real article body,
-ranks each topic against a learning-oriented interest profile, condenses the winners, and publishes
-18 RSS 2.0 files from GitHub Pages: one per category plus a combined feed.
+ranks each topic against a learning-oriented interest profile, deletes the unreadable parts of the
+winners, and publishes 18 RSS 2.0 files from GitHub Pages: one per category plus a combined feed.
 
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.14-3776AB?logo=python&logoColor=white)](#quick-start)
-[![Tests](https://img.shields.io/badge/tests-148%20passing-2ea44f)](#tests)
+[![Tests](https://img.shields.io/badge/tests-166%20passing-2ea44f)](#tests)
 [![RSS](https://img.shields.io/badge/output-RSS%202.0-f26522?logo=rss&logoColor=white)](#output-format)
 [![LLM](https://img.shields.io/badge/LLM-OpenAI%20compatible-6b4fbb)](#environment-variables)
 [![Runs on](https://img.shields.io/badge/runs%20on-GitHub%20Actions%20%2B%20Pages-2088ff?logo=githubactions&logoColor=white)](#deploy-github-actions--github-pages)
@@ -49,8 +49,9 @@ FeedOverview does the boring part of reading for you:
   summary stub.
 - **Ranked against *your* interest profile**, not an editor's. One LLM call per category per batch,
   with reasons.
-- **Condensed, not rewritten.** A second pass trims each selected article to ~800 characters while
-  keeping facts, figures and quotes. Titles stay untouched by default.
+- **Trimmed, never rewritten.** A second pass numbers the sentences and asks the model which ones
+  to delete — subscription prompts, credits, duplicated asides — then republishes the survivors
+  verbatim. Titles stay untouched by default.
 - **Never the same link twice.** A committed `cache/seen.json` gives incremental de-duplication for
   30 days, across runs.
 - **Nothing can take the feed down.** A dead source, a blocked page, a broken model response — each
@@ -81,7 +82,7 @@ flowchart LR
     C --> D["Group by category<br/>declaration order"]
     D --> E["Extract body<br/>trafilatura · no body ⇒ drop"]
     E --> F["Rank per category<br/>LLM · batched JSON · 0–10 scores<br/>+ 0–100 difficulty"]
-    F --> G["Refine<br/>LLM · per item · N concurrent"]
+    F --> G["Refine<br/>number sentences · LLM deletes indices"]
     G --> H["docs/feeds/*.xml<br/>+ docs/feed.xml<br/>+ docs/index.html"]
     H --> I["GitHub Pages<br/>main → /docs"]
     I --> J["GlobalOverview<br/>custom source"]
@@ -108,7 +109,7 @@ Steps in code:
 | 3 | `group_articles()` + `select_for_llm()` | Partition by category, then keep up to `max_candidates_per_category` with `max_candidates_per_source` per feed |
 | 4 | `enrich_all()` | trafilatura extraction, body capped at `extract.max_content_chars` |
 | 5 | `rank_articles(category=...)` | Batched prompts with the category label → `{"order":[{"index","score","reason","difficulty"}]}` |
-| 6 | `refine_articles()` | One call per item with `llm.refine.concurrency` workers |
+| 6 | `refine_articles()` | Sentences numbered `1..N` → `{"drop":[indices]}` → kept sentences joined verbatim, one call per item |
 | 7 | `write_feed()` + `write_index()` | feedgen per category → temp file → `os.replace`, then the index page |
 
 ### Output format
@@ -126,7 +127,7 @@ Steps in code:
 | `pubDate` | Publication time from the source feed |
 | `source` | Source display name (with the feed URL) |
 | `category` | Category label (e.g. `科学`) |
-| `description` | HTML: AI label, ranking reason, condensed body, source/time/difficulty, original link |
+| `description` | HTML: AI label, ranking reason, cleaned body, source/time/difficulty, original link |
 
 Every description starts with **`【AI 精简版】`** and ends with the original link — the only
 authoritative version of the article.
@@ -180,7 +181,7 @@ src/
   dedup.py                   batch dedupe + persistent SeenStore
   llm.py                     OpenAI-compatible client, retries, robust JSON parsing
   rank.py                    LLM ranking, batching, category context, fallback ordering
-  refine.py                  per-article condensation with per-item fallback
+  refine.py                  per-article sentence deletion with per-item fallback
   feedbuild.py               RSS 2.0 generation via feedgen
   site.py                    docs/index.html generation
 docs/
@@ -213,7 +214,7 @@ pip install -r requirements.txt
 pip install pytest            # only needed for the tests
 
 python -m src.main            # writes docs/feeds/*.xml, docs/feed.xml, docs/index.html
-python -m pytest              # 148 offline tests
+python -m pytest              # 166 offline tests
 ```
 
 No key? Still works — ranking degrades to "newest first + source weight" and refinement is skipped,
@@ -321,15 +322,18 @@ python tools/check_feeds.py --strict   # exit 1 if any feed fails
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `enabled` | `true` | Master switch for the condensation pass |
-| `max_input_chars` | `4000` | Body characters sent to the model |
-| `max_output_chars` | `800` | Target and hard cap for the condensed body |
-| `concurrency` | `3` | Parallel refinement requests |
-| `style` | built-in | Editing instructions injected into the prompt |
-| `keep_title` | `true` | When true the model only condenses the body |
+| `enabled` | `true` | Master switch for the clean-up pass |
+| `max_input_chars` | `4000` | Body characters sent to the model (and the fallback excerpt length) |
+| `concurrency` | `3` | Parallel clean-up requests |
+| `drop_criteria` | built-in | Instructions describing what counts as unreadable, deletable text |
+| `max_drop_ratio` | `0.4` | Share of sentences the model may delete; a longer drop list is treated as summarising |
+| `keep_title` | `true` | When true the model only picks sentences to delete |
 
-Prompts are English by default, but the rubric and the style are configuration values — switch the
-output language entirely by editing `llm.ranking_criteria` and `llm.refine.style`.
+The pass never asks for new prose. The body is split into numbered sentences, the model replies
+with `{"drop":[3,7]}`, and the remaining sentences are joined back in their original order. A model
+that tries to delete more than `max_drop_ratio` of the text is assumed to be summarising, and the
+item keeps its original body instead. Prompts are English by default; `llm.ranking_criteria` and
+`llm.refine.drop_criteria` are configuration values if you want to tune what is kept or dropped.
 
 ---
 
@@ -430,22 +434,21 @@ Ranking is cheap: one batch per category (12 candidates is below the default `ra
 On a free model (e.g. `glm-4-flash`) the token cost is zero and the real budget becomes throughput
 ([provider notes](#provider-notes-zhipu-bigmodel-智谱-glm)).
 
-Estimates for the defaults (`max_items_per_category: 6`, `max_input_chars: 4000`,
-`max_output_chars: 800`, 4 runs per day):
+Estimates for the defaults (`max_items_per_category: 6`, `max_input_chars: 4000`, 4 runs per day).
+Clean-up output is only a list of indices, so almost the whole bill is input:
 
 | Stage | Calls per run | Input tokens | Output tokens |
 | --- | --- | --- | --- |
 | Ranking | 17 | ~110k total | ~9k total |
-| Refinement | 102 | ~255k total | ~51k total |
+| Refinement | 102 | ~255k total | ~5k total |
 
-At `gpt-4o-mini`-class pricing that is roughly **US$0.06–0.08 per run, ≈ US$7–10 per month**.
+At `gpt-4o-mini`-class pricing that is roughly **US$0.05–0.07 per run, ≈ US$6–8 per month**.
 Levers, cheapest first:
 
 - `max_items_per_category` — 6 → 4 cuts refinement calls by a third.
 - `llm.refine.max_input_chars` — halving it roughly halves refinement input cost.
 - `max_candidates_per_category` — smaller ranking prompts and less extraction work.
 - `max_candidates_per_source` — lower it to 1 for wider source coverage per category.
-- `llm.refine.max_output_chars` — smaller output cap, fewer output tokens.
 - `llm.refine.enabled: false` — drop refinement entirely; only ranking is billed.
 - Removing whole categories — each dropped category removes up to 6 refinement calls.
 - The cron expression — e.g. `0 */12 * * *` halves the number of runs.
@@ -465,6 +468,7 @@ Levers, cheapest first:
 | Ranking call fails or returns invalid JSON | That batch is ordered by time; the run continues |
 | All ranking batches fail | Whole run uses the fallback ordering |
 | One refinement call fails or returns invalid JSON | That item keeps its truncated original body, stays in the feed |
+| The model deletes more than `max_drop_ratio` of the sentences | Treated as summarising: the item keeps its original body |
 | Provider throttles the account (`429` / `1302`) | Backoff, one retry, then per-item fallback |
 | `cache/seen.json` corrupt or missing | Warning, cache starts empty, links re-evaluated |
 | No new articles | Valid feed with zero items is written, URL always resolves |
@@ -479,7 +483,7 @@ crashing the run.
 ## Tests
 
 ```bash
-python -m pytest          # 148 tests, no network, no API key
+python -m pytest          # 166 tests, no network, no API key
 ```
 
 | Area | File |
@@ -489,7 +493,7 @@ python -m pytest          # 148 tests, no network, no API key
 | Category parsing, slugs, paths, grouping and fallbacks | `tests/test_categories.py` |
 | Fallback ordering, batching, pre-filter, category prompt | `tests/test_rank.py` |
 | Extraction → drop, download failure, exception, truncation | `tests/test_content.py` |
-| Per-item refinement fallback, invalid JSON, title handling, output cap | `tests/test_refine.py` |
+| Per-item clean-up fallback, invalid indices, drop-ratio guard, title handling | `tests/test_refine.py` |
 | RSS structure, AI label, original link, category metadata, empty feed, escaping | `tests/test_feed.py` |
 | LLM client availability, tolerant JSON parsing, `extra_body` | `tests/test_llm.py` |
 | HTTP retries, timeouts, 404/429/5xx handling | `tests/test_http.py` |
@@ -516,13 +520,16 @@ Judgement calls made where the original brief was ambiguous or contradicted itse
    guarantees no duplicate links; the trade-off is that a low-ranked article will not resurface.
 5. **`fast=True` vs `no_fallback`.** Newer trafilatura renamed the argument, so `extract_text()`
    tries `fast=` first and retries with `no_fallback=` on `TypeError`.
-6. **Fallback body length.** On refinement failure the item keeps its original body truncated to
-   `max_input_chars` (not `max_output_chars`), so the reader still gets the full context.
+6. **Fallback body length.** On clean-up failure the item keeps its original body truncated to
+   `max_input_chars`, so the reader still gets the full context.
 7. **Label when refinement is off.** The description still starts with `【AI 精简版】` and explains
    in parentheses that the body is an excerpt because refinement was skipped or failed.
-8. **Refined output validation.** A `refined` value shorter than 20 characters, or a non-string, is
-   treated as failure and replaced by the original body.
-9. **Short articles are not refined.** Bodies under 80 characters pass through unchanged.
+8. **Clean-up output validation.** The model returns 1-based sentence indices; non-numeric and
+   out-of-range entries are discarded. A drop list covering more than `max_drop_ratio` of the
+   sentences is rejected as summarising, and a surviving body under 20 characters also falls back
+   to the original.
+9. **Short articles are not refined.** Bodies under 80 characters, or under three sentences, pass
+   through unchanged.
 10. **`feeds[].weight`** affects pre-filtering and fallback ordering only — a deliberate degradation
     path, not a hidden signal in the LLM prompt.
 11. **`docs/feed.xml` placeholder.** A valid empty feed is committed so the Pages URL works before

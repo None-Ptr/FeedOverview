@@ -28,13 +28,13 @@ def _esc(text: str) -> str:
 
 def build_note(article: Article) -> str:
     note = (
-        "AI-condensed version. This text was produced by an LLM from the original article and "
-        "may omit details. The original link at the end is the only authoritative source."
+        "AI-trimmed version. An LLM deleted boilerplate sentences from the original article and "
+        "left the rest verbatim. The original link at the end is the only authoritative source."
     )
     if article.refine_failed:
-        note += " (Refinement failed for this item, so the body is a truncated excerpt of the original.)"
+        note += " (Clean-up failed for this item, so the body is a truncated excerpt of the original.)"
     elif not article.is_refined:
-        note += " (Refinement was skipped, so the body is an excerpt of the original.)"
+        note += " (Clean-up was skipped, so the body is an excerpt of the original.)"
     return note
 
 

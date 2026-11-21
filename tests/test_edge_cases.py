@@ -159,28 +159,33 @@ class TestRankParsingEdges:
 
 
 class TestRefineEdges:
-    def test_non_string_refined_falls_back(self, cfg):
+    def test_non_list_drop_falls_back(self, cfg):
         article = make_article(content=LONG_BODY, link="https://example.com/r1")
-        refine_articles([article], cfg, FakeLLM(lambda messages: {"refined": ["a", "b"]}))
+        refine_articles([article], cfg, FakeLLM(lambda messages: {"drop": "2"}))
         assert article.refine_failed is True
         assert article.refined_content
 
-    def test_blank_refined_falls_back(self, cfg):
+    def test_empty_drop_list_is_accepted(self, cfg):
         article = make_article(content=LONG_BODY, link="https://example.com/r2")
-        refine_articles([article], cfg, FakeLLM(lambda messages: {"refined": "     "}))
+        refine_articles([article], cfg, FakeLLM(lambda messages: {"drop": []}))
+        assert article.refine_failed is False
+
+    def test_non_numeric_drop_entries_fall_back(self, cfg):
+        article = make_article(content=LONG_BODY, link="https://example.com/r5")
+        refine_articles([article], cfg, FakeLLM(lambda messages: {"drop": ["three", None]}))
         assert article.refine_failed is True
 
     def test_overlong_title_is_ignored(self, cfg):
         cfg["llm"]["refine"]["keep_title"] = False
         article = make_article(title="Original", content=LONG_BODY, link="https://example.com/r3")
-        llm = FakeLLM(lambda messages: {"refined": "A refined body that is long enough.", "title": "T" * 500})
+        llm = FakeLLM(lambda messages: {"drop": [3], "title": "T" * 500})
         refine_articles([article], cfg, llm)
         assert article.effective_title == "Original"
 
     def test_non_string_title_is_ignored(self, cfg):
         cfg["llm"]["refine"]["keep_title"] = False
         article = make_article(title="Original", content=LONG_BODY, link="https://example.com/r4")
-        llm = FakeLLM(lambda messages: {"refined": "A refined body that is long enough.", "title": 42})
+        llm = FakeLLM(lambda messages: {"drop": [3], "title": 42})
         refine_articles([article], cfg, llm)
         assert article.effective_title == "Original"
 

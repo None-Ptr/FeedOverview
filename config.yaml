@@ -687,12 +687,18 @@ llm:
        near-duplicates.
 
   refine:
+    # The body is numbered sentence by sentence and the model answers with the
+    # indices to delete; kept sentences are published verbatim. Nothing is
+    # rewritten or summarised, so a bad answer can only remove text, not invent it.
     enabled: true
-    max_input_chars: 6000     # body characters sent to the refinement call
-    max_output_chars: 1100    # target (and hard) cap for the refined body
-    concurrency: 4            # parallel refinement requests; 3 works on glm-4-flash, drop to 1 on 429/1302
-    keep_title: true          # when true the LLM only condenses the body
-    style: >
-      Write concise, objective prose. Keep key data, quotes and conclusions, drop redundant
-      wording and repetition. Never change facts or add information that is not in the
-      source.
+    max_input_chars: 6000     # body characters sent to the clean-up call
+    concurrency: 4            # parallel clean-up requests; 3 works on glm-4-flash, drop to 1 on 429/1302
+    keep_title: true          # when true the LLM only picks sentences to delete
+    max_drop_ratio: 0.4       # a longer drop list means summarising, so the original body is kept
+    drop_criteria: >
+      Delete a sentence only when it is not article content: navigation, share/subscribe/app
+      prompts, cookie or legal notices, advertising and sponsorship text, "read more" and
+      related-link blocks, author bios and contact details, photo credits, sentences repeated
+      elsewhere in the text, and jargon-heavy disclaimers or methodology asides that a reader can
+      skip without losing the story. Never delete a sentence that carries facts, figures, quotes
+      or the author's argument, and never delete sentences just to make the article shorter.

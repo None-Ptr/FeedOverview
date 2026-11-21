@@ -38,6 +38,18 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 _SENTENCE_MARKS = "。！？!?；;\n"
 
+# Sentence boundaries in body prose: end punctuation plus optional closing
+# quotes/brackets, followed by whitespace.
+_SENTENCE_END_RE = re.compile(r"[.!?]+[\"'”’)\]]*(?=\s)")
+_SENTENCE_EDGE_CHARS = "\"'”’)]"
+# Words whose trailing period does not end a sentence ("Dr.", "Fig.", "Inc.").
+_ABBREVIATIONS = frozenset(
+    "mr mrs ms dr prof sr jr st vs etc al no fig vol inc ltd co corp dept est "
+    "approx jan feb mar apr jun jul aug sep sept oct nov dec".split()
+)
+# Initials such as "U.S.", "J." and "D.C.".
+_INITIALS_RE = re.compile(r"^(?:[A-Za-z]\.)+[A-Za-z]?\.?$")
+
 # Characters allowed by XML 1.0; scraped HTML occasionally carries control bytes
 # that make the feed writer raise.
 _XML_INVALID_RE = re.compile(
@@ -66,6 +78,48 @@ def strip_html(fragment: str) -> str:
     text = _TAG_RE.sub(" ", text)
     text = html_lib.unescape(text)
     return collapse_whitespace(text)
+
+
+def split_sentences(text: str) -> list[str]:
+    """Split prose into sentence-sized units without losing any text.
+
+    A boundary is end punctuation followed by whitespace, except after common
+    abbreviations and initials. The units only exist to number sentences for the
+    LLM, so a missed boundary costs accuracy but never content: joining the units
+    with a space restores the original text.
+    """
+    if not text:
+        return []
+
+    sentences: list[str] = []
+    start = 0
+    for match in _SENTENCE_END_RE.finditer(text):
+        end = match.end()
+        chunk = text[start:end]
+        if _ends_with_abbreviation(chunk):
+            continue
+        # "U.S. officials", "p. 5" and similar: the next word continues the sentence.
+        if text[end:].lstrip()[:1].islower():
+            continue
+        unit = chunk.strip()
+        if unit:
+            sentences.append(unit)
+        start = end
+
+    tail = text[start:].strip()
+    if tail:
+        sentences.append(tail)
+    return sentences
+
+
+def _ends_with_abbreviation(chunk: str) -> bool:
+    trimmed = chunk.rstrip(_SENTENCE_EDGE_CHARS)
+    if not trimmed:
+        return False
+    token = trimmed.rsplit(None, 1)[-1]
+    if _INITIALS_RE.match(token):
+        return True
+    return token.rstrip(".").lower() in _ABBREVIATIONS
 
 
 def normalize_url(url: str) -> str:

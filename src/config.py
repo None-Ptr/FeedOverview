@@ -18,6 +18,7 @@ from .categories import (
     find_category,
     normalize_categories,
 )
+from .refine import DEFAULT_GUIDE
 
 logger = logging.getLogger(__name__)
 
@@ -72,14 +73,12 @@ DEFAULTS: dict[str, Any] = {
         "refine": {
             "enabled": True,
             "max_input_chars": 4000,
-            "max_output_chars": 800,
             "concurrency": 3,
-            "style": (
-                "Write concise, objective prose. Keep key data and conclusions, drop "
-                "redundant wording and repetition. Never change facts or add information "
-                "that is not in the source."
-            ),
             "keep_title": True,
+            # Share of sentences the model may delete; a longer drop list means it
+            # is summarising instead of cleaning, so the original body is kept.
+            "max_drop_ratio": 0.4,
+            "drop_criteria": DEFAULT_GUIDE,
         },
     },
 }

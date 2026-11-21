@@ -42,11 +42,11 @@ def cfg() -> dict:
             "timeout": 30,
             "refine": {
                 "enabled": True,
-                "max_input_chars": 200,
-                "max_output_chars": 80,
+                "max_input_chars": 1000,
                 "concurrency": 2,
-                "style": "Be concise.",
                 "keep_title": True,
+                "max_drop_ratio": 0.4,
+                "drop_criteria": "Delete boilerplate.",
             },
         },
     }

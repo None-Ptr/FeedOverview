@@ -27,7 +27,8 @@ def test_missing_file_falls_back_to_defaults(tmp_path):
 def test_partial_config_keeps_defaults(tmp_path):
     cfg = load_config(_write(tmp_path, "max_items: 7\n"))
     assert cfg["max_items"] == 7
-    assert cfg["llm"]["refine"]["max_output_chars"] == 800
+    assert cfg["llm"]["refine"]["max_drop_ratio"] == 0.4
+    assert cfg["llm"]["refine"]["drop_criteria"]
     assert cfg["extract"]["fast"] is True
 
 
