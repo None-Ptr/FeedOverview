@@ -80,7 +80,7 @@ flowchart LR
     B --> C["De-duplicate<br/>in-batch + cache/seen.json · 30 days"]
     C --> D["Group by category<br/>declaration order"]
     D --> E["Extract body<br/>trafilatura · no body ⇒ drop"]
-    E --> F["Rank per category<br/>LLM · batched JSON · 0–10 scores"]
+    E --> F["Rank per category<br/>LLM · batched JSON · 0–10 scores<br/>+ 0–100 difficulty"]
     F --> G["Refine<br/>LLM · per item · N concurrent"]
     G --> H["docs/feeds/*.xml<br/>+ docs/feed.xml<br/>+ docs/index.html"]
     H --> I["GitHub Pages<br/>main → /docs"]
@@ -107,7 +107,7 @@ Steps in code:
 | 2 | `dedupe_articles()` | Normalized link (tracking params, fragments, trailing slashes removed) |
 | 3 | `group_articles()` + `select_for_llm()` | Partition by category, then keep up to `max_candidates_per_category` with `max_candidates_per_source` per feed |
 | 4 | `enrich_all()` | trafilatura extraction, body capped at `extract.max_content_chars` |
-| 5 | `rank_articles(category=...)` | Batched prompts with the category label → `{"order":[{"index","score","reason"}]}` |
+| 5 | `rank_articles(category=...)` | Batched prompts with the category label → `{"order":[{"index","score","reason","difficulty"}]}` |
 | 6 | `refine_articles()` | One call per item with `llm.refine.concurrency` workers |
 | 7 | `write_feed()` + `write_index()` | feedgen per category → temp file → `os.replace`, then the index page |
 
@@ -126,7 +126,7 @@ Steps in code:
 | `pubDate` | Publication time from the source feed |
 | `source` | Source display name (with the feed URL) |
 | `category` | Category label (e.g. `科学`) |
-| `description` | HTML: AI label, ranking reason, condensed body, source/time, original link |
+| `description` | HTML: AI label, ranking reason, condensed body, source/time/difficulty, original link |
 
 Every description starts with **`【AI 精简版】`** and ends with the original link — the only
 authoritative version of the article.

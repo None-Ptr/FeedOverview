@@ -19,15 +19,33 @@ RANK_SYSTEM_PROMPT = (
 )
 
 RANK_JSON_SPEC = (
-    'Return exactly this JSON shape: {"order":[{"index":0,"score":9.2,"reason":"one short sentence"}, ...]}. '
+    'Return exactly this JSON shape: '
+    '{"order":[{"index":0,"score":9.2,"reason":"one short sentence","difficulty":62}, ...]}. '
     "Include every article id exactly once, sorted from most to least important. "
     "score is a number between 0 and 10 (one decimal is enough).\n"
     "Use the whole scale and make the score agree with the reason:\n"
     "  9-10 essential for this reader; 7-8 strong, worth their time; 5-6 average; "
     "3-4 weak or off-topic; 0-2 promotional, duplicated or irrelevant.\n"
     "A promotional post, deal round-up or pure listicle can never score above 4, no matter how "
-    "fresh it is."
+    "fresh it is.\n"
+    "difficulty is an integer 0-100 estimating how hard the article is to read for the reader "
+    "described above; it must not influence the score or the order:\n"
+    "  0-20 very easy, plain news and everyday vocabulary; "
+    "21-40 easy, clear general-interest prose; "
+    "41-60 moderate, standard broadsheet or explainer writing; "
+    "61-80 demanding, long-form analysis with some jargon; "
+    "81-100 hard, dense technical or academic prose with abstract argument."
 )
+
+
+def _parse_difficulty(value: object) -> Optional[int]:
+    """Clamp the model's difficulty estimate to 0-100; ignore anything unusable."""
+    try:
+        difficulty = int(round(float(value)))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return max(0, min(100, difficulty))
+
 
 
 def fallback_order(articles: list[Article]) -> list[Article]:
@@ -102,7 +120,9 @@ def build_ranking_messages(batch: list[Article], cfg: dict, category=None) -> li
     ]
 
 
-def parse_ranking_response(data: Optional[dict], batch_size: int, offset: int = 0) -> Optional[dict[int, tuple[float, str]]]:
+def parse_ranking_response(
+    data: Optional[dict], batch_size: int, offset: int = 0
+) -> Optional[dict[int, tuple[float, str, Optional[int]]]]:
     """Map the model response onto global article indices."""
     if not isinstance(data, dict):
         return None
@@ -110,7 +130,7 @@ def parse_ranking_response(data: Optional[dict], batch_size: int, offset: int = 
     if not isinstance(order, list) or not order:
         return None
 
-    scores: dict[int, tuple[float, str]] = {}
+    scores: dict[int, tuple[float, str, Optional[int]]] = {}
     for item in order:
         if not isinstance(item, dict):
             continue
@@ -133,7 +153,7 @@ def parse_ranking_response(data: Optional[dict], batch_size: int, offset: int = 
 
         score = max(0.0, min(10.0, score))
         reason = str(item.get("reason") or "").strip()[:MAX_REASON_CHARS]
-        scores[index] = (score, reason)
+        scores[index] = (score, reason, _parse_difficulty(item.get("difficulty")))
 
     return scores or None
 
@@ -150,7 +170,7 @@ def rank_articles(articles: list[Article], cfg: dict, llm=None, category=None) -
         return fallback_order(items)
 
     batch_size = max(1, int(cfg.get("llm", {}).get("rank_batch_size", 40)))
-    scores: dict[int, tuple[float, str]] = {}
+    scores: dict[int, tuple[float, str, Optional[int]]] = {}
     failed_batches = 0
 
     for offset in range(0, len(items), batch_size):
@@ -179,15 +199,22 @@ def rank_articles(articles: list[Article], cfg: dict, llm=None, category=None) -
 
     for index, article in enumerate(items):
         if index in scores:
-            article.score, article.reason = scores[index]
+            article.score, article.reason, article.difficulty = scores[index]
 
     if failed_batches:
         logger.warning("%d ranking batch(es) failed; unscored items are ordered by time", failed_batches)
 
     if logger.isEnabledFor(logging.DEBUG):
         for index in sorted(scores):
-            score, why = scores[index]
-            logger.debug("rank %2d  %4.1f  %s | %s", index, score, items[index].title[:60], why[:60])
+            score, why, difficulty = scores[index]
+            logger.debug(
+                "rank %2d  %4.1f  diff=%s  %s | %s",
+                index,
+                score,
+                "-" if difficulty is None else difficulty,
+                items[index].title[:60],
+                why[:60],
+            )
 
     ranked = sorted(items, key=_ranked_key, reverse=True)
     logger.info("LLM ranked %d articles (%d scored)", len(ranked), len(scores))

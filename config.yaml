@@ -22,11 +22,11 @@ max_items: 200
 # Hard cap of entries taken from a single source per run.
 max_items_per_source: 20
 # Articles published in each category feed per run.
-max_items_per_category: 6
+max_items_per_category: 8
 # Candidates per category handed to body extraction and ranking.
-max_candidates_per_category: 18
+max_candidates_per_category: 32
 # Keep one high-volume source from occupying every candidate slot.
-max_candidates_per_source: 2
+max_candidates_per_source: 3
 
 # Free-form description of what the reader cares about. Used in the ranking prompt.
 interest: >-
@@ -418,8 +418,8 @@ feeds:
   - title: "The Guardian Books"
     url: "https://www.theguardian.com/books/rss"
     category: "Books"
-  - title: "n+1"
-    url: "https://www.nplusonemag.com/feed/"
+  - title: "NPR Culture"
+    url: "https://feeds.npr.org/1008/rss.xml"
     category: "Books"
 
   # --- Ideas --------------------------------------------------------------
@@ -521,8 +521,8 @@ feeds:
   - title: "Grammarphobia"
     url: "https://grammarphobia.com/blog/feed"
     category: "Learner"
-  - title: "TED-Ed Blog"
-    url: "https://blog.ed.ted.com/feed/"
+  - title: "Separated by a Common Language"
+    url: "https://separatedbyacommonlanguage.blogspot.com/feeds/posts/default?alt=rss"
     category: "Learner"
 
   # --- Sports -------------------------------------------------------------
@@ -664,7 +664,7 @@ llm:
   #   glm-4.5-flash and glm-4.5-air are more stable free alternatives.
   model: "glm-4-flash"
   temperature: 0.2
-  max_summary_chars: 1200   # body preview length inside the ranking prompt
+  max_summary_chars: 1800   # body preview length inside the ranking prompt
   rank_batch_size: 40       # articles per ranking request
   timeout: 120              # seconds per LLM request
 
@@ -688,9 +688,9 @@ llm:
 
   refine:
     enabled: true
-    max_input_chars: 4000     # body characters sent to the refinement call
-    max_output_chars: 800     # target (and hard) cap for the refined body
-    concurrency: 3            # parallel refinement requests; 3 works on glm-4-flash, drop to 1 on 429/1302
+    max_input_chars: 6000     # body characters sent to the refinement call
+    max_output_chars: 1100    # target (and hard) cap for the refined body
+    concurrency: 4            # parallel refinement requests; 3 works on glm-4-flash, drop to 1 on 429/1302
     keep_title: true          # when true the LLM only condenses the body
     style: >
       Write concise, objective prose. Keep key data, quotes and conclusions, drop redundant

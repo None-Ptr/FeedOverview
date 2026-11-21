@@ -49,6 +49,17 @@ class TestFeedOutput:
         assert item.findtext("title") == "Original headline"
         assert "AI 精简版" in item.findtext("description")
 
+    def test_difficulty_is_shown_when_scored(self, cfg, tmp_path):
+        article = make_article(link="https://example.com/d", content="Body.", summary="S")
+        article.difficulty = 62
+        out = write_feed([article], cfg, path=str(tmp_path / "feed.xml"))
+        assert "Difficulty:</strong> 62/100" in _parse(out).find("./channel/item/description").text
+
+    def test_difficulty_is_omitted_without_llm(self, cfg, tmp_path):
+        article = make_article(link="https://example.com/nd", content="Body.", summary="S")
+        out = write_feed([article], cfg, path=str(tmp_path / "feed.xml"))
+        assert "Difficulty" not in _parse(out).find("./channel/item/description").text
+
     def test_source_element_points_at_the_feed(self, cfg, tmp_path):
         article = make_article(
             link="https://example.com/post",

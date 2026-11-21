@@ -24,6 +24,7 @@ class TestFallbackOrdering:
 
         assert [item.title for item in ranked] == ["heavy", "newer", "light", "older"]
         assert all(item.score is None for item in ranked)
+        assert all(item.difficulty is None for item in ranked)
 
     def test_unavailable_client_falls_back(self, cfg):
         articles = [_article("a", "https://example.com/a", 1), _article("b", "https://example.com/b", 2)]
@@ -43,8 +44,8 @@ class TestLLMRanking:
         def responder(messages):
             return {
                 "order": [
-                    {"index": 1, "score": 9.4, "reason": "deep dive"},
-                    {"index": 0, "score": 2.0, "reason": "thin"},
+                    {"index": 1, "score": 9.4, "reason": "deep dive", "difficulty": 71},
+                    {"index": 0, "score": 2.0, "reason": "thin", "difficulty": 18},
                 ]
             }
 
@@ -53,6 +54,8 @@ class TestLLMRanking:
         assert [item.title for item in ranked] == ["high", "low"]
         assert ranked[0].score == 9.4
         assert ranked[0].reason == "deep dive"
+        assert ranked[0].difficulty == 71
+        assert ranked[1].difficulty == 18
 
     def test_invalid_response_falls_back(self, cfg):
         articles = [_article("a", "https://example.com/a", 1), _article("b", "https://example.com/b", 2)]

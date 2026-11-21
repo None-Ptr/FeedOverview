@@ -33,6 +33,8 @@ class Article:
     # Ranking results (None when the fallback ordering was used)
     score: Optional[float] = None
     reason: Optional[str] = None
+    # LLM-estimated reading difficulty, 0 (easiest) to 100 (hardest)
+    difficulty: Optional[int] = None
 
     # Refinement results (None when refinement was skipped or failed)
     refined_content: Optional[str] = None

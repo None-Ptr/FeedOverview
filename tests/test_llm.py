@@ -92,5 +92,8 @@ class TestRateLimitDetection:
     def test_zhipu_concurrency_code(self):
         assert is_rate_limit_error(RuntimeError("Error code: 1302 - concurrency limit")) is True
 
+    def test_zhipu_overload_code(self):
+        assert is_rate_limit_error(RuntimeError("Error code: 1305 - service overloaded")) is True
+
     def test_other_failures_are_not_rate_limits(self):
         assert is_rate_limit_error(RuntimeError("connection reset")) is False

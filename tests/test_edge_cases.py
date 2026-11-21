@@ -1,4 +1,4 @@
-"""Edge cases across the pipeline: hostile text, odd URLs, malformed LLM output."""
+﻿"""Edge cases across the pipeline: hostile text, odd URLs, malformed LLM output."""
 
 import json
 import xml.etree.ElementTree as ET
@@ -33,11 +33,11 @@ class TestHostileFeedContent:
         assert ET.parse(out).getroot().findtext("./channel/item/title") == "Badtitle"
 
     def test_emoji_and_unicode_survive(self, cfg, tmp_path):
-        article = make_article(title="书评 📚 — naïve café", content="内容 \U0001f600 保留", link="https://example.com/u")
+        article = make_article(title="涔﹁瘎 馃摎 鈥?na茂ve caf茅", content="鍐呭 \U0001f600 淇濈暀", link="https://example.com/u")
         out = write_feed([article], cfg, path=str(tmp_path / "feed.xml"), now=NOW)
         root = ET.parse(out).getroot()
-        assert root.findtext("./channel/item/title") == "书评 📚 — naïve café"
-        assert "内容" in root.find("./channel/item/description").text
+        assert root.findtext("./channel/item/title") == "涔﹁瘎 馃摎 鈥?na茂ve caf茅"
+        assert "鍐呭" in root.find("./channel/item/description").text
 
     def test_missing_publish_date_uses_build_time(self, cfg, tmp_path):
         article = make_article(link="https://example.com/nodate", content=LONG_BODY)
@@ -66,7 +66,7 @@ class TestSanitizeXml:
         assert sanitize_xml("a\x00b\x01c\x1fd") == "abcd"
 
     def test_keeps_unicode(self):
-        assert sanitize_xml("汉语 é 🎉") == "汉语 é 🎉"
+        assert sanitize_xml("姹夎 茅 馃帀") == "姹夎 茅 馃帀"
 
     def test_empty(self):
         assert sanitize_xml("") == ""
@@ -96,11 +96,11 @@ class TestUrlAndTextEdges:
 class TestRankParsingEdges:
     def test_out_of_range_index_ignored(self):
         data = {"order": [{"index": 99, "score": 9, "reason": "x"}, {"index": 0, "score": 5, "reason": "ok"}]}
-        assert parse_ranking_response(data, batch_size=2) == {0: (5.0, "ok")}
+        assert parse_ranking_response(data, batch_size=2) == {0: (5.0, "ok", None)}
 
     def test_non_numeric_entries_skipped(self):
         data = {"order": [{"index": "abc", "score": 9}, {"index": 0, "score": "high"}, {"index": 1, "score": 7}]}
-        assert parse_ranking_response(data, batch_size=2) == {1: (7.0, "")}
+        assert parse_ranking_response(data, batch_size=2) == {1: (7.0, "", None)}
 
     def test_score_is_clamped(self):
         data = {"order": [{"index": 0, "score": 42, "reason": "a"}, {"index": 1, "score": -5, "reason": "b"}]}
@@ -109,15 +109,41 @@ class TestRankParsingEdges:
 
     def test_duplicate_index_last_wins(self):
         data = {"order": [{"index": 0, "score": 1}, {"index": 0, "score": 8}]}
-        assert parse_ranking_response(data, batch_size=1) == {0: (8.0, "")}
+        assert parse_ranking_response(data, batch_size=1) == {0: (8.0, "", None)}
+
+    def test_difficulty_is_parsed_and_clamped(self):
+        data = {
+            "order": [
+                {"index": 0, "score": 9, "difficulty": 62},
+                {"index": 1, "score": 4, "difficulty": 240},
+                {"index": 2, "score": 7, "difficulty": -3},
+                {"index": 3, "score": 6, "difficulty": 62.6},
+            ]
+        }
+        parsed = parse_ranking_response(data, batch_size=4)
+        assert parsed[0][2] == 62
+        assert parsed[1][2] == 100
+        assert parsed[2][2] == 0
+        assert parsed[3][2] == 63
+
+    def test_missing_or_invalid_difficulty_is_none(self):
+        data = {
+            "order": [
+                {"index": 0, "score": 9},
+                {"index": 1, "score": 5, "difficulty": "hard"},
+            ]
+        }
+        parsed = parse_ranking_response(data, batch_size=2)
+        assert parsed[0][2] is None
+        assert parsed[1][2] is None
 
     def test_offset_maps_to_global_indices(self):
         data = {"order": [{"index": 0, "score": 6, "reason": "r"}]}
-        assert parse_ranking_response(data, batch_size=2, offset=4) == {4: (6.0, "r")}
+        assert parse_ranking_response(data, batch_size=2, offset=4) == {4: (6.0, "r", None)}
 
     def test_global_indices_are_accepted(self):
         data = {"order": [{"index": 5, "score": 6, "reason": "r"}]}
-        assert parse_ranking_response(data, batch_size=2, offset=4) == {5: (6.0, "r")}
+        assert parse_ranking_response(data, batch_size=2, offset=4) == {5: (6.0, "r", None)}
 
     def test_missing_order_key(self):
         assert parse_ranking_response({"items": []}, batch_size=2) is None
@@ -205,3 +231,4 @@ class TestPipelineEdges:
 
         assert main_module.run(cfg) == 0
         assert ET.parse(cfg["output_path"]).getroot().findall("./channel/item") == []
+

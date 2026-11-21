@@ -26,8 +26,9 @@ def is_rate_limit_error(exc: BaseException) -> bool:
     text = f"{type(exc).__name__} {exc}".lower()
     if any(hint in text for hint in _RATE_LIMIT_HINTS):
         return True
-    # Zhipu BigModel returns code 1302 ("concurrency limit reached") in the payload.
-    return "1302" in text
+    # Zhipu BigModel returns 1302 ("concurrency limit reached") and 1305
+    # ("service overloaded") as payload codes instead of HTTP 429.
+    return any(code in text for code in ("1302", "1305"))
 
 
 def parse_json_object(text: str) -> Optional[dict]:

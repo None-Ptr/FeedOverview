@@ -51,10 +51,10 @@ def build_description(article: Article) -> str:
             parts.append(f"<p>{_esc(block)}</p>")
 
     published = article.published.strftime("%Y-%m-%d %H:%M UTC") if article.published else "unknown"
-    parts.append(
-        f"<p><strong>Source:</strong> {_esc(article.source_name)} | "
-        f"<strong>Published:</strong> {published}</p>"
-    )
+    meta = f"<strong>Source:</strong> {_esc(article.source_name)} | <strong>Published:</strong> {published}"
+    if article.difficulty is not None:
+        meta += f" | <strong>Difficulty:</strong> {int(article.difficulty)}/100"
+    parts.append(f"<p>{meta}</p>")
 
     link_text = _esc(article.link)
     link_href = html.escape(sanitize_xml(article.link), quote=True)
